@@ -19,10 +19,14 @@ export default function ShareholderDashboardPage() {
 
             <ShareSummary />
 
-            <ActiveProposals />
+            <div id="active-proposals" className="scroll-mt-20">
+                <ActiveProposals />
+            </div>
 
             <HistorySection />
-            <TransferRequests />
+            <div id="transfer-requests" className="scroll-mt-20">
+                <TransferRequests />
+            </div>
         </div>
     );
 }
