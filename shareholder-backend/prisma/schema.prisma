@@ -1,0 +1,252 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Shareholder {
+  id                     String                 @id @default(uuid())
+  firstName              String
+  lastName               String
+  email                  String                 @unique
+  phone                  String?
+  address                String?
+  type                   ShareholderType
+  status                 ShareholderStatus
+  username               String                 @unique
+  passwordHash           String
+  lastLogin              DateTime?
+  role                   UserRole
+  ownership              Float                  @default(0)
+  totalShares            Int                    @default(0)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  announcementsAuthored  Announcement[]         @relation("AnnouncementAuthor")
+  auditLogs              AuditLog[]             @relation("AuditLogUser")
+  dividendHistories      DividendHistory[]      @relation("DividendHistoryShareholder")
+  documentsAdded         Document[]             @relation("DocumentAddedBy")
+  documentsHeld          Document[]             @relation("DocumentShareholder")
+  messagesSent           Message[]              @relation("from")
+  messagesReceived       Message[]              @relation("to")
+  proposalsAuthored      Proposal[]             @relation("author")
+  sharePurchaseHistories SharePurchaseHistory[] @relation("SharePurchaseHistoryShareholder")
+  transferRequestsFrom   ShareTransferRequest[] @relation("fromShareholder")
+  transferRequestsTo     ShareTransferRequest[] @relation("toShareholder")
+  shares                 ShareholderShare[]
+  votes                  Vote[]
+}
+
+model ShareClass {
+  id                String                 @id @default(uuid())
+  name              ShareClassType
+  description       String?
+  dividends         Dividend[]
+  sharePurchases    SharePurchaseHistory[]
+  transferRequests  ShareTransferRequest[]
+  shareholderShares ShareholderShare[]
+}
+
+model ShareholderShare {
+  id            String      @id @default(uuid())
+  shareholderId String
+  shareClassId  String
+  amount        Int
+  price         Float
+  issueDate     DateTime
+  shareClass    ShareClass  @relation(fields: [shareClassId], references: [id])
+  shareholder   Shareholder @relation(fields: [shareholderId], references: [id])
+}
+
+model Proposal {
+  id                  String                 @id @default(uuid())
+  title               String
+  description         String
+  type                ProposalType
+  status              ProposalStatus
+  requiredThreshold   Float
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  authorId            String?
+  targetShareholderId String?
+  targetTransferId    String?
+  author              Shareholder?           @relation("author", fields: [authorId], references: [id])
+  transferRequests    ShareTransferRequest[] @relation("ProposalTransferRequest")
+  votes               Vote[]
+}
+
+model Vote {
+  id            String      @id @default(uuid())
+  proposalId    String
+  shareholderId String
+  vote          VoteType
+  voteWeight    Float
+  createdAt     DateTime    @default(now())
+  proposal      Proposal    @relation(fields: [proposalId], references: [id])
+  shareholder   Shareholder @relation(fields: [shareholderId], references: [id])
+}
+
+model Dividend {
+  id             String            @id @default(uuid())
+  declaredDate   DateTime
+  paymentDate    DateTime
+  amountPerShare Float
+  shareClassId   String
+  totalAmount    Float
+  status         DividendStatus
+  recordDate     DateTime
+  shareClass     ShareClass        @relation(fields: [shareClassId], references: [id])
+  histories      DividendHistory[]
+}
+
+model DividendHistory {
+  id             String      @id @default(uuid())
+  shareholderId  String
+  dividendId     String
+  amountReceived Float
+  paidAt         DateTime
+  dividend       Dividend    @relation(fields: [dividendId], references: [id])
+  shareholder    Shareholder @relation("DividendHistoryShareholder", fields: [shareholderId], references: [id])
+}
+
+model Announcement {
+  id       String               @id @default(uuid())
+  title    String
+  content  String
+  authorId String
+  role     String?
+  date     DateTime
+  priority AnnouncementPriority
+  category String
+  author   Shareholder          @relation("AnnouncementAuthor", fields: [authorId], references: [id])
+}
+
+model Document {
+  id            String       @id @default(uuid())
+  name          String
+  type          String
+  size          String?
+  addedById     String?
+  isGlobal      Boolean      @default(false)
+  shareholderId String?
+  addedBy       Shareholder? @relation("DocumentAddedBy", fields: [addedById], references: [id])
+  shareholder   Shareholder? @relation("DocumentShareholder", fields: [shareholderId], references: [id])
+}
+
+model SharePurchaseHistory {
+  id            String      @id @default(uuid())
+  shareholderId String
+  shareClassId  String
+  amount        Int
+  price         Float
+  purchaseDate  DateTime
+  shareClass    ShareClass  @relation(fields: [shareClassId], references: [id])
+  shareholder   Shareholder @relation("SharePurchaseHistoryShareholder", fields: [shareholderId], references: [id])
+}
+
+model ShareTransferRequest {
+  id                String         @id @default(uuid())
+  fromShareholderId String
+  toShareholderId   String
+  shareClassId      String
+  amount            Int
+  price             Float
+  issueDate         DateTime
+  status            TransferStatus
+  proposalId        String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  from              Shareholder    @relation("fromShareholder", fields: [fromShareholderId], references: [id])
+  proposal          Proposal?      @relation("ProposalTransferRequest", fields: [proposalId], references: [id])
+  shareClass        ShareClass     @relation(fields: [shareClassId], references: [id])
+  to                Shareholder    @relation("toShareholder", fields: [toShareholderId], references: [id])
+}
+
+model AuditLog {
+  id        String       @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String
+  prevValue String?
+  newValue  String?
+  userId    String?
+  createdAt DateTime     @default(now())
+  user      Shareholder? @relation("AuditLogUser", fields: [userId], references: [id])
+}
+
+model Message {
+  id      String      @id @default(uuid())
+  fromId  String
+  toId    String
+  content String
+  sentAt  DateTime    @default(now())
+  from    Shareholder @relation("from", fields: [fromId], references: [id])
+  to      Shareholder @relation("to", fields: [toId], references: [id])
+}
+
+enum ShareholderType {
+  individual
+  institution
+}
+
+enum ShareholderStatus {
+  pending
+  approved
+  rejected
+}
+
+enum UserRole {
+  admin
+  shareholder
+}
+
+enum ShareClassType {
+  COMMON
+  PREFERRED
+  OPTIONS_POOL
+  TREASURY
+}
+
+enum ProposalType {
+  GENERAL
+  FINANCIAL
+  MANAGER_ELECTION
+  TRANSFER_APPROVAL
+  AMENDMENT
+  NEW_SHAREHOLDER
+}
+
+enum ProposalStatus {
+  open
+  closed
+  approved
+  rejected
+  pending
+}
+
+enum VoteType {
+  YES
+  NO
+  ABSTAIN
+}
+
+enum DividendStatus {
+  pending
+  paid
+  unpaid
+}
+
+enum AnnouncementPriority {
+  high
+  medium
+  low
+}
+
+enum TransferStatus {
+  pending
+  voting
+  approved
+  rejected
+  completed
+}
