@@ -263,7 +263,49 @@ export default function AdminVoteDetailsPage() {
                                         <div><span className="font-semibold">Type:</span> {newShareholderMeta.type}</div>
                                         <div><span className="font-semibold">Target Shares:</span> {newShareholderMeta.targetShares}</div>
                                         <div><span className="font-semibold">Target Ownership:</span> {newShareholderMeta.targetOwnership}%</div>
-                                        <div className="md:col-span-2"><span className="font-semibold">Acquisition Mode:</span> {metadata?.acquisitionMode}</div>
+                                        <div className="md:col-span-2">
+                                            <span className="font-semibold">Acquisition Mode:</span> {
+                                                metadata?.acquisitionMode === 'purchaseFromSingle' ? 'Purchase from Single Shareholder' : 
+                                                metadata?.acquisitionMode === 'purchaseByDilution' ? 'Purchase by Dilution' : 
+                                                metadata?.acquisitionMode
+                                            }
+                                        </div>
+                                        {metadata?.acquisitionMode === 'purchaseFromSingle' && metadata?.fromShareholderId && (
+                                            <div className="md:col-span-2 p-3 rounded bg-white border border-blue-200">
+                                                <div className="font-semibold text-blue-700 mb-2">Shares will be transferred from:</div>
+                                                {proposal?.targetShareholder ? (
+                                                    <div className="text-sm text-gray-700">
+                                                        <div><span className="font-medium">Name:</span> {proposal.targetShareholder.firstName} {proposal.targetShareholder.lastName}</div>
+                                                        <div><span className="font-medium">Email:</span> {proposal.targetShareholder.email}</div>
+                                                        <div><span className="font-medium">Current Shares:</span> {proposal.targetShareholder.totalShares}</div>
+                                                        <div><span className="font-medium">Current Ownership:</span> {proposal.targetShareholder.ownership?.toFixed(2) || '0.00'}%</div>
+                                                        <div className="mt-2 text-xs text-gray-600">
+                                                            After transfer: {proposal.targetShareholder.totalShares - newShareholderMeta.targetShares} shares
+                                                        </div>
+                                                    </div>
+                                                ) : shareholdersMap.get(metadata.fromShareholderId) ? (
+                                                    <div className="text-sm text-gray-700">
+                                                        <div><span className="font-medium">Name:</span> {shareholdersMap.get(metadata.fromShareholderId)!.firstName} {shareholdersMap.get(metadata.fromShareholderId)!.lastName}</div>
+                                                        <div><span className="font-medium">Email:</span> {shareholdersMap.get(metadata.fromShareholderId)!.email}</div>
+                                                        <div><span className="font-medium">Current Shares:</span> {shareholdersMap.get(metadata.fromShareholderId)!.totalShares || 'N/A'}</div>
+                                                        <div className="mt-2 text-xs text-gray-600">
+                                                            After transfer: {(shareholdersMap.get(metadata.fromShareholderId)!.totalShares || 0) - newShareholderMeta.targetShares} shares
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-sm text-gray-500">Shareholder ID: {metadata.fromShareholderId}</div>
+                                                )}
+                                            </div>
+                                        )}
+                                        {metadata?.acquisitionMode === 'purchaseByDilution' && (
+                                            <div className="md:col-span-2 p-3 rounded bg-white border border-blue-200">
+                                                <div className="font-semibold text-blue-700 mb-2">Share Acquisition Method:</div>
+                                                <div className="text-sm text-gray-700">
+                                                    New shares will be issued, diluting all existing shareholders proportionally. 
+                                                    The new shareholder will receive {newShareholderMeta.targetShares} shares representing {newShareholderMeta.targetOwnership}% ownership.
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -276,24 +318,63 @@ export default function AdminVoteDetailsPage() {
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-800">
                                         <div>
-                                            <span className="font-semibold">From:</span>{" "}
-                                            {shareholdersMap.get(transferRequest.fromShareholderId)
-                                                ? `${shareholdersMap.get(transferRequest.fromShareholderId)!.firstName} ${shareholdersMap.get(transferRequest.fromShareholderId)!.lastName}`
-                                                : transferRequest.fromShareholderId}
+                                            <span className="font-semibold">From Shareholder:</span>{" "}
+                                            {transferRequest.from ? (
+                                                <div className="mt-1 ml-4">
+                                                    <div>{transferRequest.from.firstName} {transferRequest.from.lastName}</div>
+                                                    <div className="text-xs text-gray-600">{transferRequest.from.email}</div>
+                                                    {transferRequest.from.totalShares !== undefined && (
+                                                        <div className="text-xs text-gray-600">
+                                                            Current: {transferRequest.from.totalShares} shares
+                                                            {transferRequest.from.totalShares !== undefined && (
+                                                                <span className="ml-2">
+                                                                    → {transferRequest.from.totalShares - transferRequest.amount} shares after transfer
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : shareholdersMap.get(transferRequest.fromShareholderId) ? (
+                                                <div className="mt-1 ml-4">
+                                                    <div>{shareholdersMap.get(transferRequest.fromShareholderId)!.firstName} {shareholdersMap.get(transferRequest.fromShareholderId)!.lastName}</div>
+                                                    <div className="text-xs text-gray-600">{shareholdersMap.get(transferRequest.fromShareholderId)!.email}</div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-500">{transferRequest.fromShareholderId}</span>
+                                            )}
                                         </div>
                                         <div>
-                                            <span className="font-semibold">To:</span>{" "}
-                                            {shareholdersMap.get(transferRequest.toShareholderId)
-                                                ? `${shareholdersMap.get(transferRequest.toShareholderId)!.firstName} ${shareholdersMap.get(transferRequest.toShareholderId)!.lastName}`
-                                                : transferRequest.toShareholderId}
+                                            <span className="font-semibold">To Shareholder:</span>{" "}
+                                            {transferRequest.to ? (
+                                                <div className="mt-1 ml-4">
+                                                    <div>{transferRequest.to.firstName} {transferRequest.to.lastName}</div>
+                                                    <div className="text-xs text-gray-600">{transferRequest.to.email}</div>
+                                                    {transferRequest.to.totalShares !== undefined && (
+                                                        <div className="text-xs text-gray-600">
+                                                            Current: {transferRequest.to.totalShares} shares
+                                                            <span className="ml-2">
+                                                                → {transferRequest.to.totalShares + transferRequest.amount} shares after transfer
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : shareholdersMap.get(transferRequest.toShareholderId) ? (
+                                                <div className="mt-1 ml-4">
+                                                    <div>{shareholdersMap.get(transferRequest.toShareholderId)!.firstName} {shareholdersMap.get(transferRequest.toShareholderId)!.lastName}</div>
+                                                    <div className="text-xs text-gray-600">{shareholdersMap.get(transferRequest.toShareholderId)!.email}</div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-500">{transferRequest.toShareholderId}</span>
+                                            )}
                                         </div>
                                         <div>
                                             <span className="font-semibold">Share Class:</span>{" "}
-                                            {shareClassesMap.get(transferRequest.shareClassId)?.name || transferRequest.shareClassId}
+                                            {transferRequest.shareClass?.name || shareClassesMap.get(transferRequest.shareClassId)?.name || transferRequest.shareClassId}
                                         </div>
-                                        <div><span className="font-semibold">Amount:</span> {transferRequest.amount}</div>
-                                        <div><span className="font-semibold">Price/Share:</span> ${transferRequest.price}</div>
-                                        <div><span className="font-semibold">Status:</span> {transferRequest.status}</div>
+                                        <div><span className="font-semibold">Amount:</span> {transferRequest.amount} shares</div>
+                                        <div><span className="font-semibold">Price/Share:</span> ${transferRequest.price?.toFixed(2) || transferRequest.price}</div>
+                                        <div><span className="font-semibold">Total Value:</span> ${(transferRequest.amount * (transferRequest.price || 0)).toFixed(2)}</div>
+                                        <div><span className="font-semibold">Status:</span> <span className="capitalize">{transferRequest.status}</span></div>
                                     </div>
                                 </div>
                             )}

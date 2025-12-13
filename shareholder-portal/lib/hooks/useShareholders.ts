@@ -19,7 +19,12 @@ export const useShareholders = () => {
   return useQuery({
     queryKey: shareholderKeys.list('shareholders'),
     queryFn: () => shareholdersApi.getAllShareholders(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 30 * 1000, // Consider data fresh for 30 seconds
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    // Background refetch every 30 seconds - won't cause UI flicker
+    refetchInterval: 30000,
+    refetchIntervalInBackground: true, // Continue refetching even when tab is in background
   });
 };
 

@@ -328,6 +328,71 @@ export class ProposalService {
   }
 
   /**
+   * Get all proposals (open, approved, rejected, closed)
+   */
+  static async getAllProposals(): Promise<any[]> {
+    return await prisma.proposal.findMany({
+      include: {
+        author: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            username: true
+          }
+        },
+        votes: {
+          include: {
+            shareholder: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                ownership: true
+              }
+            }
+          }
+        },
+        transferRequests: {
+          include: {
+            from: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true
+              }
+            },
+            to: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true
+              }
+            },
+            shareClass: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        },
+        targetShareholder: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  /**
    * Get proposal by ID with full details
    */
   static async getProposalById(proposalId: string): Promise<any> {
@@ -354,7 +419,45 @@ export class ProposalService {
             }
           }
         },
-        transferRequests: true
+        transferRequests: {
+          include: {
+            from: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                totalShares: true
+              }
+            },
+            to: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                totalShares: true
+              }
+            },
+            shareClass: {
+              select: {
+                id: true,
+                name: true,
+                description: true
+              }
+            }
+          }
+        },
+        targetShareholder: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            totalShares: true,
+            ownership: true
+          }
+        }
       }
     });
   }

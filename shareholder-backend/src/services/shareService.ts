@@ -1,4 +1,4 @@
-import { ShareholderType, ShareholderStatus, UserRole } from "@prisma/client";
+import { ShareholderType, ShareholderStatus, UserRole, TransferStatus } from "@prisma/client";
 import { prisma } from "../prismaClient";
 
 export interface ShareAllocation {
@@ -150,7 +150,26 @@ export class ShareService {
     fromShareholderId: string,
     transferShares: number
   ): Promise<any> {
-    return await prisma.$transaction(async (tx: { shareholder: { create: (arg0: { data: { username: string; passwordHash: string; firstName: string; lastName: string; email: string; phone: string | undefined; address: string | undefined; type: ShareholderType; status: any; role: UserRole; ownership: number; totalShares: number; }; }) => any; findUnique: (arg0: { where: { id: string; }; }) => any; update: (arg0: { where: { id: string; }; data: { totalShares: number; ownership: number; }; }) => any; }; }) => {
+    return await prisma.$transaction(async (tx) => {
+      // Get the selling shareholder first
+      const fromShareholder = await tx.shareholder.findUnique({
+        where: { id: fromShareholderId }
+      });
+
+      if (!fromShareholder) {
+        throw new Error("Source shareholder not found");
+      }
+
+      // Get all current shareholders to calculate total shares
+      const allShareholders = await tx.shareholder.findMany({
+        where: {
+          status: ShareholderStatus.approved
+        },
+        select: { totalShares: true }
+      });
+
+      const totalSharesBefore = allShareholders.reduce((sum, s) => sum + s.totalShares, 0);
+      
       // Create the new shareholder
       const newShareholder = await tx.shareholder.create({
         data: {
@@ -169,26 +188,28 @@ export class ShareService {
         }
       });
 
-      // Get total shares for ownership calculation
-      const totalShares = await this.getTotalShares();
+      // Calculate new total shares (after adding new shareholder)
+      // Total shares remain the same (shares are transferred, not created)
+      const totalShares = totalSharesBefore; // Shares are transferred, total stays same
 
       // Update the selling shareholder
-      const fromShareholder = await tx.shareholder.findUnique({
-        where: { id: fromShareholderId }
-      });
-
-      if (!fromShareholder) {
-        throw new Error("Source shareholder not found");
-      }
-
       const newFromShares = fromShareholder.totalShares - transferShares;
-      const newFromOwnership = (newFromShares / totalShares) * 100;
+      const newFromOwnership = totalShares > 0 ? (newFromShares / totalShares) * 100 : 0;
 
       await tx.shareholder.update({
         where: { id: fromShareholderId },
         data: {
           totalShares: newFromShares,
           ownership: newFromOwnership
+        }
+      });
+
+      // Recalculate ownership for new shareholder based on actual total
+      const newShareholderOwnership = totalShares > 0 ? (newShareholderData.targetShares / totalShares) * 100 : 0;
+      await tx.shareholder.update({
+        where: { id: newShareholder.id },
+        data: {
+          ownership: newShareholderOwnership
         }
       });
 
@@ -206,7 +227,7 @@ export class ShareService {
     shareClassId: string,
     price: number
   ): Promise<any> {
-    return await prisma.$transaction(async (tx: { shareholder: { findUnique: (arg0: { where: { id: string; } | { id: string; }; }) => any; update: (arg0: { where: { id: string; } | { id: string; }; data: { totalShares: number; ownership: number; } | { totalShares: any; ownership: number; }; }) => any; }; shareTransferRequest: { create: (arg0: { data: { fromShareholderId: string; toShareholderId: string; shareClassId: string; amount: number; price: number; issueDate: Date; status: string; }; }) => any; }; }) => {
+    return await prisma.$transaction(async (tx) => {
       // Get both shareholders
       const fromShareholder = await tx.shareholder.findUnique({
         where: { id: fromShareholderId }
@@ -259,7 +280,7 @@ export class ShareService {
           amount: transferShares,
           price,
           issueDate: new Date(),
-          status: 'completed'
+          status: TransferStatus.completed
         }
       });
 

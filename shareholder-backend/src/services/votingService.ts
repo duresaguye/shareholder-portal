@@ -43,7 +43,18 @@ export class VotingService {
       throw new Error("Proposal not found");
     }
 
-    // Calculate total voting weight (only approved shareholders can vote)
+    // Get total ownership of ALL approved shareholders (not just those who voted)
+    const allApprovedShareholders = await prisma.shareholder.findMany({
+      where: { 
+        status: ShareholderStatus.approved,
+        role: 'shareholder' // Exclude admins from voting weight
+      },
+      select: { ownership: true }
+    });
+
+    const totalOwnership = allApprovedShareholders.reduce((sum: number, s: { ownership: number }) => sum + s.ownership, 0);
+
+    // Calculate total voting weight (only approved shareholders who voted)
     const totalVotingWeight = votes.reduce((sum: any, vote: { shareholder: { status: any; ownership: any; }; }) => {
       if (vote.shareholder.status === ShareholderStatus.approved) {
         return sum + vote.shareholder.ownership;
@@ -73,12 +84,13 @@ export class VotingService {
       }
     });
 
-    // Calculate percentages
-    const yesPercentage = totalVotingWeight > 0 ? (yesWeight / totalVotingWeight) * 100 : 0;
-    const noPercentage = totalVotingWeight > 0 ? (noWeight / totalVotingWeight) * 100 : 0;
-    const abstainPercentage = totalVotingWeight > 0 ? (abstainWeight / totalVotingWeight) * 100 : 0;
+    // Calculate percentages based on total ownership (not just voting weight)
+    // This ensures threshold is compared against total ownership, not just those who voted
+    const yesPercentage = totalOwnership > 0 ? (yesWeight / totalOwnership) * 100 : 0;
+    const noPercentage = totalOwnership > 0 ? (noWeight / totalOwnership) * 100 : 0;
+    const abstainPercentage = totalOwnership > 0 ? (abstainWeight / totalOwnership) * 100 : 0;
 
-    // Check if approved
+    // Check if approved - threshold is based on total ownership
     const isApproved = yesPercentage >= proposal.requiredThreshold;
 
     return {
@@ -163,10 +175,20 @@ export class VotingService {
   }
 
   /**
-   * Check if all shareholders have voted or if voting period should end
+   * Check if voting should be closed (either threshold reached or all shareholders voted)
    */
   static async shouldCloseVoting(proposalId: string): Promise<boolean> {
-    // Get all approved shareholders
+    // First check if threshold is reached
+    const votingResult = await this.calculateVotingResults(proposalId);
+    
+    // If threshold is reached (approved or rejected), close voting
+    if (votingResult.isApproved) {
+      return true;
+    }
+
+    // Also check if threshold for rejection is reached (if NO votes exceed threshold)
+    // For now, we'll close if all shareholders voted OR if threshold is reached
+    // Check if all shareholders have voted
     const approvedShareholders = await prisma.shareholder.findMany({
       where: { 
         status: ShareholderStatus.approved,
@@ -182,10 +204,13 @@ export class VotingService {
     });
 
     const votedShareholderIds = new Set(votes.map((v: { shareholderId: any; }) => v.shareholderId));
-    const allShareholderIds = new Set(approvedShareholders.map((s: { id: any; }) => s.id));
-
+    
     // Check if all shareholders have voted
-    return approvedShareholders.every((s: { id: unknown; }) => votedShareholderIds.has(s.id));
+    const allVoted = approvedShareholders.every((s: { id: unknown; }) => votedShareholderIds.has(s.id));
+    
+    // Also check if we can't reach threshold anymore (if remaining votes can't push it over)
+    // For simplicity, we'll close if threshold is reached OR all voted
+    return allVoted || votingResult.isApproved;
   }
 
   /**

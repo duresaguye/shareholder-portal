@@ -38,6 +38,7 @@ import { useProposals, useVotingResults, useCreateGeneralProposal } from "@/lib/
 import { useShareholders } from "@/lib/hooks/useShareholders";
 import { useShareClasses } from "@/lib/hooks/useShareClasses";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Proposal } from "@/lib/types/api";
 
 // Component for individual proposal card to properly use hooks
@@ -50,6 +51,8 @@ function ProposalCard({ proposal, totalShareholders, onViewDetails }: { proposal
     const participation = results ? Math.round(results.totalVotingWeight) : 0;
     const voters = proposal.votes?.length || 0;
     const createdDate = new Date(proposal.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const isClosed = proposal.status === 'closed' || proposal.status === 'approved' || proposal.status === 'rejected';
+    const isApproved = proposal.status === 'approved';
 
     return (
         <Card className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
@@ -58,15 +61,23 @@ function ProposalCard({ proposal, totalShareholders, onViewDetails }: { proposal
                 <div className="flex items-start justify-between">
                     <div className="space-y-2">
                         <div className="flex items-center gap-3">
-                            <Badge className="bg-blue-500/10 text-blue-700 border-blue-200">
-                                {proposal.status.toUpperCase()}
+                            <Badge className={
+                                isApproved 
+                                    ? 'bg-emerald-500/10 text-emerald-700 border-emerald-200'
+                                    : proposal.status === 'rejected'
+                                    ? 'bg-rose-500/10 text-rose-700 border-rose-200'
+                                    : isClosed
+                                    ? 'bg-gray-500/10 text-gray-700 border-gray-200'
+                                    : 'bg-blue-500/10 text-blue-700 border-blue-200'
+                            }>
+                                {isApproved ? '✓ APPROVED' : proposal.status === 'rejected' ? '✗ REJECTED' : proposal.status.toUpperCase()}
                             </Badge>
                             <Badge variant="outline" className="text-xs">
                                 {proposal.type.replace('_', ' ')}
                             </Badge>
                             <div className="flex items-center gap-1 text-sm text-gray-500">
                                 <Calendar className="h-4 w-4" />
-                                Created {createdDate}
+                                {isClosed ? 'Closed' : 'Created'} {createdDate}
                             </div>
                         </div>
                         <CardTitle className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
@@ -113,8 +124,12 @@ function ProposalCard({ proposal, totalShareholders, onViewDetails }: { proposal
                             </div>
                             <div className="text-right">
                                 <div className="text-sm text-gray-600">Required: {proposal.requiredThreshold}%</div>
-                                <div className={`text-sm font-bold ${votesFor >= proposal.requiredThreshold ? 'text-emerald-600' : 'text-amber-600'}`}>
-                                    Current: {votesFor.toFixed(1)}%
+                                <div className={`text-sm font-bold ${
+                                    isClosed 
+                                        ? (isApproved ? 'text-emerald-600' : 'text-rose-600')
+                                        : (votesFor >= proposal.requiredThreshold ? 'text-emerald-600' : 'text-amber-600')
+                                }`}>
+                                    {isClosed ? (isApproved ? '✓ Approved' : '✗ Rejected') : `Current: ${votesFor.toFixed(1)}%`}
                                 </div>
                             </div>
                         </div>
@@ -133,6 +148,57 @@ function ProposalCard({ proposal, totalShareholders, onViewDetails }: { proposal
                         </div>
                     </div>
                 )}
+
+                {/* Transfer/Shareholder Info Summary */}
+                {proposal.type === 'TRANSFER_APPROVAL' && proposal.transferRequests && proposal.transferRequests.length > 0 && (
+                    <div className="p-3 rounded-lg border bg-amber-50/50 border-amber-200">
+                        <div className="text-xs font-semibold text-amber-700 mb-1">Share Transfer</div>
+                        <div className="text-sm text-gray-700">
+                            {proposal.transferRequests[0].from ? (
+                                <span>{proposal.transferRequests[0].from.firstName} {proposal.transferRequests[0].from.lastName}</span>
+                            ) : (
+                                <span>Shareholder {proposal.transferRequests[0].fromShareholderId.slice(0, 8)}...</span>
+                            )}
+                            <span className="mx-2">→</span>
+                            {proposal.transferRequests[0].to ? (
+                                <span>{proposal.transferRequests[0].to.firstName} {proposal.transferRequests[0].to.lastName}</span>
+                            ) : (
+                                <span>Shareholder {proposal.transferRequests[0].toShareholderId.slice(0, 8)}...</span>
+                            )}
+                            <span className="ml-2 text-gray-600">({proposal.transferRequests[0].amount} shares)</span>
+                        </div>
+                    </div>
+                )}
+                {proposal.type === 'NEW_SHAREHOLDER' && proposal.description.includes('METADATA:') && (() => {
+                    try {
+                        const [, metaRaw] = proposal.description.split('METADATA:');
+                        const meta = JSON.parse(metaRaw.trim());
+                        const newShareholder = meta.newShareholderData;
+                        return (
+                            <div className="p-3 rounded-lg border bg-blue-50/50 border-blue-200">
+                                <div className="text-xs font-semibold text-blue-700 mb-1">New Shareholder</div>
+                                <div className="text-sm text-gray-700">
+                                    <span>{newShareholder?.firstName} {newShareholder?.lastName}</span>
+                                    {newShareholder?.targetShares && (
+                                        <span className="ml-2 text-gray-600">({newShareholder.targetShares} shares, {newShareholder.targetOwnership}% ownership)</span>
+                                    )}
+                                </div>
+                                {meta.acquisitionMode === 'purchaseFromSingle' && proposal.targetShareholder && (
+                                    <div className="text-xs text-gray-600 mt-1">
+                                        From: {proposal.targetShareholder.firstName} {proposal.targetShareholder.lastName}
+                                    </div>
+                                )}
+                                {meta.acquisitionMode === 'purchaseByDilution' && (
+                                    <div className="text-xs text-gray-600 mt-1">
+                                        Method: Dilution (new shares issued)
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    } catch {
+                        return null;
+                    }
+                })()}
 
                 {/* Stats */}
                 <div className="grid grid-cols-3 gap-4">
@@ -161,7 +227,14 @@ function ProposalCard({ proposal, totalShareholders, onViewDetails }: { proposal
             </CardContent>
             <CardFooter className="pt-0">
                 <div className="text-sm text-gray-500 flex items-center gap-2">
-                    <span>Click anywhere to view details →</span>
+                    {isClosed ? (
+                        <>
+                            <Clock className="h-4 w-4" />
+                            <span>Voting closed - Click to view final results →</span>
+                        </>
+                    ) : (
+                        <span>Click anywhere to view details →</span>
+                    )}
                 </div>
             </CardFooter>
         </Card>
@@ -555,35 +628,68 @@ export default function AdminVotingPage() {
                 </div>
             )}
 
-            {/* Active Proposals */}
+            {/* Proposals with Tabs */}
             {!proposalsLoading && !proposalsError && (
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-semibold text-gray-900">Active Votes</h2>
-                        <Badge className="bg-blue-600 text-white">
-                            {filteredActiveProposals.length} Active
-                        </Badge>
-                    </div>
+                <Tabs defaultValue="active" className="w-full">
+                    <TabsList className="grid w-full max-w-md grid-cols-2">
+                        <TabsTrigger value="active" className="flex items-center gap-2">
+                            <Vote className="h-4 w-4" />
+                            Active Votes
+                            <Badge variant="secondary" className="ml-2">
+                                {filteredActiveProposals.length}
+                            </Badge>
+                        </TabsTrigger>
+                        <TabsTrigger value="history" className="flex items-center gap-2">
+                            <Clock className="h-4 w-4" />
+                            Voting History
+                            <Badge variant="secondary" className="ml-2">
+                                {closedProposals.length}
+                            </Badge>
+                        </TabsTrigger>
+                    </TabsList>
 
-                    {activeProposals.length === 0 ? (
-                        <Card>
-                            <CardContent className="pt-6">
-                                <div className="text-center text-gray-500 py-8">
-                                    No active proposals at this time.
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ) : (
-                        filteredActiveProposals.map((proposal: Proposal) => (
-                            <ProposalCard 
-                                key={proposal.id} 
-                                proposal={proposal} 
-                                totalShareholders={getTotalShareholders()}
-                                onViewDetails={handleViewDetails}
-                            />
-                        ))
-                    )}
-                </div>
+                    <TabsContent value="active" className="space-y-4 mt-6">
+                        {activeProposals.length === 0 ? (
+                            <Card>
+                                <CardContent className="pt-6">
+                                    <div className="text-center text-gray-500 py-8">
+                                        No active proposals at this time.
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            filteredActiveProposals.map((proposal: Proposal) => (
+                                <ProposalCard 
+                                    key={proposal.id} 
+                                    proposal={proposal} 
+                                    totalShareholders={getTotalShareholders()}
+                                    onViewDetails={handleViewDetails}
+                                />
+                            ))
+                        )}
+                    </TabsContent>
+
+                    <TabsContent value="history" className="space-y-4 mt-6">
+                        {closedProposals.length === 0 ? (
+                            <Card>
+                                <CardContent className="pt-6">
+                                    <div className="text-center text-gray-500 py-8">
+                                        No closed proposals yet.
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            closedProposals.map((proposal: Proposal) => (
+                                <ProposalCard 
+                                    key={proposal.id} 
+                                    proposal={proposal} 
+                                    totalShareholders={getTotalShareholders()}
+                                    onViewDetails={handleViewDetails}
+                                />
+                            ))
+                        )}
+                    </TabsContent>
+                </Tabs>
             )}
         </div>
     );

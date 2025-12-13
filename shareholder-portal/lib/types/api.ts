@@ -49,6 +49,14 @@ export interface Proposal {
   };
   votes?: Vote[];
   transferRequests?: ShareTransferRequest[];
+  targetShareholder?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    totalShares?: number;
+    ownership?: number;
+  };
 }
 
 export interface Vote {
@@ -78,6 +86,25 @@ export interface ShareTransferRequest {
   proposalId?: string;
   createdAt: string;
   updatedAt: string;
+  from?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    totalShares?: number;
+  };
+  to?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    totalShares?: number;
+  };
+  shareClass?: {
+    id: string;
+    name: string;
+    description?: string;
+  };
 }
 
 export interface VotingResult {

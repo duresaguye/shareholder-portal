@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -100,12 +101,24 @@ export default function ShareholdersPage() {
     
     const createProposalMutation = useCreateNewShareholderProposal();
     const createTestShareholdersMutation = useCreateTestShareholders();
+    const queryClient = useQueryClient();
 
     // Use only shareholders data (no admins)
     const currentData = shareholdersData;
     const currentLoading = shareholdersLoading;
     const currentError = shareholdersError;
     const currentRefetch = refetchShareholders;
+
+    // Background refetch - only refetch in background when window is focused, no UI flicker
+    useEffect(() => {
+        // Only refetch when window regains focus (user comes back to tab)
+        const handleFocus = () => {
+            queryClient.invalidateQueries({ queryKey: ['shareholders'] });
+        };
+
+        window.addEventListener('focus', handleFocus);
+        return () => window.removeEventListener('focus', handleFocus);
+    }, [queryClient]);
 
     // Transform API data to display format
     const shareholders = React.useMemo(() => {
@@ -216,8 +229,8 @@ export default function ShareholdersPage() {
             });
             setIsAddDialogOpen(false);
             
-        } catch (error: unknown) {
-            alert(`Error creating proposal: ${error.message}`);
+        } catch (error: any) {
+            alert(`Error creating proposal: ${error?.message || 'Unknown error'}`);
         }
     };
 

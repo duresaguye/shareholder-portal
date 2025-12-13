@@ -31,6 +31,7 @@ model Shareholder {
   messagesSent           Message[]              @relation("from")
   messagesReceived       Message[]              @relation("to")
   proposalsAuthored      Proposal[]             @relation("author")
+  proposalsTargeted     Proposal[]             @relation("targetShareholder")
   sharePurchaseHistories SharePurchaseHistory[] @relation("SharePurchaseHistoryShareholder")
   transferRequestsFrom   ShareTransferRequest[] @relation("fromShareholder")
   transferRequestsTo     ShareTransferRequest[] @relation("toShareholder")
@@ -72,6 +73,7 @@ model Proposal {
   targetShareholderId String?
   targetTransferId    String?
   author              Shareholder?           @relation("author", fields: [authorId], references: [id])
+  targetShareholder   Shareholder?          @relation("targetShareholder", fields: [targetShareholderId], references: [id])
   transferRequests    ShareTransferRequest[] @relation("ProposalTransferRequest")
   votes               Vote[]
 }

@@ -194,7 +194,8 @@ export const createGeneralProposal = async (req: AuthRequest, res: Response) => 
 
 export const getAllProposals = async (req: Request, res: Response) => {
   try {
-    const proposals = await ProposalService.getOpenProposals();
+    // Return all proposals (open, approved, rejected, closed) so frontend can filter
+    const proposals = await ProposalService.getAllProposals();
     const enriched = proposals.map(mergeProposalMetadata);
     return res.json({ proposals: enriched });
   } catch (error: any) {
@@ -244,6 +245,10 @@ export const castVote = async (req: AuthRequest, res: Response) => {
     const shouldClose = await VotingService.shouldCloseVoting(id);
     let votingResults = null;
 
+    let executionResult = null;
+    let executionSuccess = false;
+    let proposalType = null;
+
     if (shouldClose) {
       votingResults = await VotingService.finalizeVoting(id);
       
@@ -251,15 +256,21 @@ export const castVote = async (req: AuthRequest, res: Response) => {
       if (votingResults.isApproved) {
         try {
           const proposal = await ProposalService.getProposalById(id);
+          proposalType = proposal.type;
           
           if (proposal.type === 'NEW_SHAREHOLDER') {
-            await ProposalService.executeNewShareholderProposal(id);
+            executionResult = await ProposalService.executeNewShareholderProposal(id);
+            console.log("New shareholder created successfully:", executionResult.id);
+            executionSuccess = true;
           } else if (proposal.type === 'TRANSFER_APPROVAL') {
-            await ProposalService.executeShareTransferProposal(id);
+            executionResult = await ProposalService.executeShareTransferProposal(id);
+            console.log("Share transfer executed successfully:", executionResult);
+            executionSuccess = true;
           }
-        } catch (executionError) {
+        } catch (executionError: any) {
           console.error("Error executing approved proposal:", executionError);
-          
+          // Re-throw to ensure error is visible
+          throw new Error(`Failed to execute approved proposal: ${executionError.message}`);
         }
       }
     }
@@ -268,7 +279,13 @@ export const castVote = async (req: AuthRequest, res: Response) => {
       message: "Vote cast successfully",
       vote: voteRecord,
       votingClosed: shouldClose,
-      votingResults
+      votingResults,
+      executionSuccess,
+      executionResult: executionSuccess ? {
+        type: proposalType,
+        shareholderId: executionResult?.id,
+        message: "Proposal executed successfully"
+      } : null
     });
   } catch (error: any) {
     console.error("Error casting vote:", error);

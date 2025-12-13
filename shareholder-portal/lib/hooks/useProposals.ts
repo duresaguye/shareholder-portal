@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { proposalsApi } from '../api/proposals';
 import { CreateNewShareholderProposalRequest, CreateShareTransferProposalRequest, CreateGeneralProposalRequest, CastVoteRequest } from '../types/api';
+import { shareholderKeys } from './useShareholders';
 
 // Query Keys
 export const proposalKeys = {
@@ -84,14 +85,21 @@ export const useCastVote = () => {
   return useMutation({
     mutationFn: ({ proposalId, vote }: { proposalId: string; vote: CastVoteRequest }) =>
       proposalsApi.castVote(proposalId, vote),
-    onSuccess: (_, { proposalId }) => {
+    onSuccess: async (response, { proposalId }) => {
       // Invalidate proposal details and voting results
       queryClient.invalidateQueries({ queryKey: proposalKeys.detail(proposalId) });
       queryClient.invalidateQueries({ queryKey: proposalKeys.votingResults(proposalId) });
       queryClient.invalidateQueries({ queryKey: proposalKeys.lists() });
       
-      // If voting closed and approved, invalidate shareholder data too
-      queryClient.invalidateQueries({ queryKey: ['shareholders'] });
+      // If voting closed and proposal was executed, invalidate and refetch shareholder data
+      if (response?.executionSuccess || response?.votingClosed) {
+        console.log("Voting closed/executed, invalidating shareholder cache...");
+        // Invalidate all shareholder queries
+        queryClient.invalidateQueries({ queryKey: ['shareholders'] });
+        queryClient.invalidateQueries({ queryKey: shareholderKeys.all });
+        // Force immediate refetch
+        queryClient.refetchQueries({ queryKey: shareholderKeys.all, type: 'active' });
+      }
     },
   });
 };
