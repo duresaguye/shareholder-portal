@@ -9,6 +9,8 @@ export interface NewShareholderProposalData {
   acquisitionMode: 'purchaseFromSingle' | 'purchaseByDilution';
   fromShareholderId?: string; // Required for purchaseFromSingle
   newShareholderData: NewShareholderData;
+  price?: number; // Share purchase price per share
+  shareClassId?: string; // Share class ID (defaults to COMMON if not provided)
   requiredThreshold?: number;
 }
 
@@ -84,7 +86,11 @@ export class ProposalService {
       const metadata = {
         acquisitionMode: data.acquisitionMode,
         fromShareholderId: data.fromShareholderId,
-        newShareholderData: data.newShareholderData
+        newShareholderData: {
+          ...data.newShareholderData,
+          price: data.price || data.newShareholderData.price || 0,
+          shareClassId: data.shareClassId || data.newShareholderData.shareClassId
+        }
       };
 
       await tx.proposal.update({
@@ -230,20 +236,27 @@ export class ProposalService {
       // Import ShareService here to avoid circular dependency
       const { ShareService } = await import('./shareService');
 
+      // Ensure price and shareClassId are included in newShareholderData
+      const enrichedShareholderData = {
+        ...newShareholderData,
+        price: newShareholderData.price || 0,
+        shareClassId: newShareholderData.shareClassId
+      };
+
       if (acquisitionMode === 'purchaseByDilution') {
         // Execute dilution
         const allocations = await ShareService.calculateDilution(
-          newShareholderData.targetOwnership,
-          newShareholderData.targetShares
+          enrichedShareholderData.targetOwnership,
+          enrichedShareholderData.targetShares
         );
         
-        return await ShareService.executeDilution(newShareholderData, allocations);
+        return await ShareService.executeDilution(enrichedShareholderData, allocations);
       } else if (acquisitionMode === 'purchaseFromSingle') {
         // Execute single transfer
         return await ShareService.executeSingleTransfer(
-          newShareholderData,
+          enrichedShareholderData,
           fromShareholderId,
-          newShareholderData.targetShares
+          enrichedShareholderData.targetShares
         );
       }
 

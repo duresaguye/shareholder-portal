@@ -1,16 +1,15 @@
-"use client"; // Client-side component directive
+"use client";
 
-// UI Component Imports
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-// Custom Hook Import
+
 import { useCurrentUser } from "@/lib/hooks/useShareholders";
 
 export default function SettingsPage() {
-    // Fetch current user data
+
     const { data: currentUserData } = useCurrentUser();
-    
-    // Extract admin information
+
     const admin = currentUserData?.shareholder;
     const adminName = admin ? `${admin.firstName} ${admin.lastName}` : "Admin";
 
@@ -36,10 +35,10 @@ export default function SettingsPage() {
                     <CardContent>
                         {/* Company Details Display */}
                         <div className="space-y-6">
-                            {/* Information Grid */}
+                   
                             <div className="grid gap-6 md:grid-cols-2">
                                 
-                                {/* Company Name Display */}
+                              
                                 <div className="space-y-2">
                                     <div className="text-sm font-medium text-gray-500">
                                         Company Name
@@ -49,7 +48,7 @@ export default function SettingsPage() {
                                     </div>
                                 </div>
                                 
-                                {/* Contact Email Display */}
+                             
                                 <div className="space-y-2">
                                     <div className="text-sm font-medium text-gray-500">
                                         Contact Email
@@ -59,7 +58,7 @@ export default function SettingsPage() {
                                     </div>
                                 </div>
                                 
-                                {/* Phone Number Display */}
+                               
                                 <div className="space-y-2">
                                     <div className="text-sm font-medium text-gray-500">
                                         Phone Number

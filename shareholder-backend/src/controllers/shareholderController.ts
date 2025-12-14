@@ -125,7 +125,17 @@ export const getShareholderById = async (req: Request, res: Response) => {
         totalShares: true,
         lastLogin: true,
         createdAt: true,
-        updatedAt: true
+        updatedAt: true,
+        shares: {
+          select: {
+            price: true,
+            amount: true,
+            issueDate: true
+          },
+          orderBy: {
+            issueDate: 'desc'
+          }
+        }
       }
     });
 
@@ -133,7 +143,23 @@ export const getShareholderById = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Shareholder not found." });
     }
 
-    return res.json({ shareholder });
+    // Calculate average share price from all share purchases
+    // If no shares exist, use a default or calculate from the most recent purchase
+    let shareValue = 0;
+    if (shareholder.shares && shareholder.shares.length > 0) {
+      // Calculate weighted average price
+      const totalValue = shareholder.shares.reduce((sum, share) => sum + (share.price * share.amount), 0);
+      const totalAmount = shareholder.shares.reduce((sum, share) => sum + share.amount, 0);
+      shareValue = totalAmount > 0 ? totalValue / totalAmount : shareholder.shares[0].price;
+    }
+
+    return res.json({ 
+      shareholder: {
+        ...shareholder,
+        shareValue: shareValue || 0,
+        shares: shareholder.shares // Include shares array for frontend calculations
+      }
+    });
   } catch (e: any) {
     console.error("Error fetching shareholder:", e);
     return res.status(500).json({ error: e.message });

@@ -1,4 +1,4 @@
-import { ShareholderType, ShareholderStatus, UserRole, TransferStatus } from "@prisma/client";
+import { ShareholderType, ShareholderStatus, UserRole, TransferStatus, ShareClassType } from "@prisma/client";
 import { prisma } from "../prismaClient";
 
 export interface ShareAllocation {
@@ -21,6 +21,8 @@ export interface NewShareholderData {
   role: UserRole;
   targetOwnership: number;
   targetShares: number;
+  price?: number; // Share purchase price per share
+  shareClassId?: string; // Share class ID (defaults to COMMON if not provided)
 }
 
 export class ShareService {
@@ -111,7 +113,33 @@ export class ShareService {
     newShareholderData: NewShareholderData,
     allocations: ShareAllocation[]
   ): Promise<any> {
-    return await prisma.$transaction(async (tx: { shareholder: { create: (arg0: { data: { username: string; passwordHash: string; firstName: string; lastName: string; email: string; phone: string | undefined; address: string | undefined; type: ShareholderType; status: any; role: UserRole; ownership: number; totalShares: number; }; }) => any; update: (arg0: { where: { id: string; }; data: { ownership: number; }; }) => any; }; }) => {
+    return await prisma.$transaction(async (tx: any) => {
+      // Get or create COMMON share class if shareClassId not provided
+      let shareClass;
+      if (newShareholderData.shareClassId) {
+        shareClass = await tx.shareClass.findUnique({
+          where: { id: newShareholderData.shareClassId }
+        });
+        if (!shareClass) {
+          throw new Error("Specified share class not found");
+        }
+      } else {
+        // Default to COMMON share class
+        shareClass = await tx.shareClass.findFirst({
+          where: { name: ShareClassType.COMMON }
+        });
+        
+        // If COMMON doesn't exist, create it
+        if (!shareClass) {
+          shareClass = await tx.shareClass.create({
+            data: {
+              name: ShareClassType.COMMON,
+              description: "Common shares"
+            }
+          });
+        }
+      }
+
       // Create the new shareholder
       const newShareholder = await tx.shareholder.create({
         data: {
@@ -129,6 +157,20 @@ export class ShareService {
           totalShares: newShareholderData.targetShares
         }
       });
+
+      // Create ShareholderShare record to track share purchase with price
+      const sharePrice = newShareholderData.price || 0; // Default to 0 if price not provided
+      if (shareClass) {
+        await tx.shareholderShare.create({
+          data: {
+            shareholderId: newShareholder.id,
+            shareClassId: shareClass.id,
+            amount: newShareholderData.targetShares,
+            price: sharePrice,
+            issueDate: new Date()
+          }
+        });
+      }
 
       // Update existing shareholders' ownership percentages
       for (const allocation of allocations) {
@@ -150,7 +192,7 @@ export class ShareService {
     fromShareholderId: string,
     transferShares: number
   ): Promise<any> {
-    return await prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async (tx: any) => {
       // Get the selling shareholder first
       const fromShareholder = await tx.shareholder.findUnique({
         where: { id: fromShareholderId }
@@ -158,6 +200,32 @@ export class ShareService {
 
       if (!fromShareholder) {
         throw new Error("Source shareholder not found");
+      }
+
+      // Get or create COMMON share class if shareClassId not provided
+      let shareClass;
+      if (newShareholderData.shareClassId) {
+        shareClass = await tx.shareClass.findUnique({
+          where: { id: newShareholderData.shareClassId }
+        });
+        if (!shareClass) {
+          throw new Error("Specified share class not found");
+        }
+      } else {
+        // Default to COMMON share class
+        shareClass = await tx.shareClass.findFirst({
+          where: { name: ShareClassType.COMMON }
+        });
+        
+        // If COMMON doesn't exist, create it
+        if (!shareClass) {
+          shareClass = await tx.shareClass.create({
+            data: {
+              name: ShareClassType.COMMON,
+              description: "Common shares"
+            }
+          });
+        }
       }
 
       // Get all current shareholders to calculate total shares
@@ -187,6 +255,20 @@ export class ShareService {
           totalShares: newShareholderData.targetShares
         }
       });
+
+      // Create ShareholderShare record for the new shareholder
+      const sharePrice = newShareholderData.price || 0; // Default to 0 if price not provided
+      if (shareClass) {
+        await tx.shareholderShare.create({
+          data: {
+            shareholderId: newShareholder.id,
+            shareClassId: shareClass.id,
+            amount: transferShares,
+            price: sharePrice,
+            issueDate: new Date()
+          }
+        });
+      }
 
       // Calculate new total shares (after adding new shareholder)
       // Total shares remain the same (shares are transferred, not created)
@@ -281,6 +363,27 @@ export class ShareService {
           price,
           issueDate: new Date(),
           status: TransferStatus.completed
+        }
+      });
+
+      // Verify share class exists
+      const shareClass = await tx.shareClass.findUnique({
+        where: { id: shareClassId }
+      });
+
+      if (!shareClass) {
+        throw new Error("Share class not found");
+      }
+
+      // Create ShareholderShare record for the receiving shareholder
+      // This tracks the share purchase with price for audit and value calculation
+      await tx.shareholderShare.create({
+        data: {
+          shareholderId: toShareholderId,
+          shareClassId: shareClassId,
+          amount: transferShares,
+          price: price,
+          issueDate: new Date()
         }
       });
 

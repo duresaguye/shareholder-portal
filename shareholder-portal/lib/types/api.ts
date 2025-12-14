@@ -12,6 +12,12 @@ export interface Shareholder {
   role: 'admin' | 'shareholder';
   ownership: number;
   totalShares: number;
+  shareValue?: number; // Average share price calculated from share purchases
+  shares?: Array<{
+    price: number;
+    amount: number;
+    issueDate: string;
+  }>; // Share purchase history for calculations
   lastLogin?: string;
   createdAt: string;
   updatedAt: string;

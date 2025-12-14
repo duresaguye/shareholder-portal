@@ -13,6 +13,7 @@ import {
     PieChart,
     Shield,
     TrendingUp,
+    TrendingDown,
     DollarSign,
     Target,
     Calendar,
@@ -39,7 +40,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 
-// Helper to parse proposal metadata and format description
+
 const parseProposalDescription = (proposal: any) => {
     if (!proposal?.description || !proposal.description.includes("METADATA:")) {
         return proposal.description || "";
@@ -51,13 +52,13 @@ const parseProposalDescription = (proposal: any) => {
     try {
         const meta = JSON.parse(metaRaw.trim());
         
-        // Format based on proposal type
+ 
         if (proposal.type === 'NEW_SHAREHOLDER' && meta.newShareholderData) {
             const { firstName, lastName, email, targetOwnership, targetShares } = meta.newShareholderData;
             cleanDescription = `Proposal to add ${firstName} ${lastName} (${email}) as a new shareholder with ${targetOwnership}% ownership (${targetShares} shares)${meta.acquisitionMode === 'purchaseFromSingle' ? ' through single shareholder purchase' : ' through dilution'}.`;
         }
     } catch {
-        // If parsing fails, just use the description part without metadata
+       
     }
     
     return cleanDescription;
@@ -83,7 +84,7 @@ export default function ShareholderDetailsPage() {
         [proposalsData, id]
     );
 
-    // Calculate voting history (keep hook before any early returns to preserve hook order)
+    
     const votingHistory = useMemo(() => {
         if (!proposalsData?.proposals || !shareholder) return {
             totalVotes: 0,
@@ -119,7 +120,7 @@ export default function ShareholderDetailsPage() {
             ? Math.round((totalVotes / totalEligibleVotes) * 100) 
             : 0;
 
-        // Accuracy not available without proposal result field; set to 0 or derive differently
+       
         const accuracy = 0;
 
         return {
@@ -157,7 +158,7 @@ export default function ShareholderDetailsPage() {
                     </div>
                     <h2 className="text-2xl font-bold text-gray-900">Shareholder Not Found</h2>
                     <p className="text-gray-600 max-w-md">
-                        The shareholder you're looking for doesn't exist or has been removed.
+                        The shareholder you&apos;re looking for doesn&apos;t exist or has been removed.
                     </p>
                 </div>
                 <Link href="/shareholders">
@@ -170,15 +171,64 @@ export default function ShareholderDetailsPage() {
         );
     }
 
-    // Calculate derived values
-    const shareValue = 125.50; // This should come from API in real implementation
+  
+    const shareValue = shareholder.shareValue || 0;
     const totalValue = shareholder.totalShares * shareValue;
     const joinDate = new Date(shareholder.createdAt).toLocaleDateString();
     const memberSince = Math.floor((Date.now() - new Date(shareholder.createdAt).getTime()) / (1000 * 60 * 60 * 24 * 365));
     
-    const transactions = [
+    // Calculate dynamic percentage changes from ShareholderShare records
+    const shareholderWithShares = shareholder as any;
+    const shares = shareholderWithShares.shares || [];
+    
+    const calculateSharePriceChange = (): number | null => {
+      if (!shares || shares.length < 2) return null;
+      
+      // Get latest purchase price
+      const latestPurchase = shares[0];
+      const previousPurchases = shares.slice(1);
+      
+      if (previousPurchases.length === 0) return null;
+      
+      // Calculate average price of previous purchases
+      const previousTotalValue = previousPurchases.reduce((sum: number, s: any) => sum + (s.price * s.amount), 0);
+      const previousTotalAmount = previousPurchases.reduce((sum: number, s: any) => sum + s.amount, 0);
+      const previousAvgPrice = previousTotalAmount > 0 ? previousTotalValue / previousTotalAmount : 0;
+      
+      if (previousAvgPrice === 0) return null;
+      
+      // Calculate percentage change
+      const change = ((latestPurchase.price - previousAvgPrice) / previousAvgPrice) * 100;
+      return change;
+    };
+    
+    const calculateSharesGrowth = (): number | null => {
+      if (!shares || shares.length < 2) return null;
+      
+      // Get shares from last 30 days vs previous period
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      const recentShares = shares.filter((s: any) => new Date(s.issueDate) >= thirtyDaysAgo);
+      const previousShares = shares.filter((s: any) => new Date(s.issueDate) < thirtyDaysAgo);
+      
+      if (recentShares.length === 0 || previousShares.length === 0) return null;
+      
+      const recentTotal = recentShares.reduce((sum: number, s: any) => sum + s.amount, 0);
+      const previousTotal = previousShares.reduce((sum: number, s: any) => sum + s.amount, 0);
+      
+      if (previousTotal === 0) return null;
+      
+      const growth = (recentTotal / previousTotal) * 100;
+      return growth;
+    };
+    
+    const sharePriceChange = calculateSharePriceChange();
+    const sharesGrowth = calculateSharesGrowth();
+    
+    const transactions = shareValue > 0 ? [
         { date: joinDate, type: "Initial Purchase", shares: shareholder.totalShares, price: shareValue, total: totalValue },
-    ];
+    ] : [];
     
     const documents = ["Share Certificate", "Voting Agreement"];
 
@@ -238,10 +288,25 @@ export default function ShareholderDetailsPage() {
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-sm text-gray-600">{shareholder.ownership.toFixed(2)}% ownership</span>
-                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                    <TrendingUp className="h-3 w-3 mr-1" />
-                                    +2.3%
-                                </Badge>
+                                {sharesGrowth !== null && (
+                                    <Badge 
+                                        variant="outline" 
+                                        className={`${
+                                            sharesGrowth > 0 
+                                                ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                                                : sharesGrowth < 0 
+                                                ? 'bg-red-50 text-red-700 border-red-200'
+                                                : 'bg-gray-50 text-gray-700 border-gray-200'
+                                        }`}
+                                    >
+                                        {sharesGrowth > 0 ? (
+                                            <TrendingUp className="h-3 w-3 mr-1" />
+                                        ) : sharesGrowth < 0 ? (
+                                            <TrendingDown className="h-3 w-3 mr-1" />
+                                        ) : null}
+                                        {sharesGrowth > 0 ? '+' : ''}{sharesGrowth.toFixed(1)}%
+                                    </Badge>
+                                )}
                             </div>
                         </div>
                     </CardContent>
@@ -260,14 +325,31 @@ export default function ShareholderDetailsPage() {
                     <CardContent>
                         <div className="space-y-2">
                             <div className="text-2xl font-bold text-gray-900">
-                                ${(totalValue / 1000).toFixed(1)}K
+                                {shareValue > 0 ? `$${(totalValue / 1000).toFixed(1)}K` : 'N/A'}
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-sm text-gray-600">${shareValue.toFixed(2)} per share</span>
-                                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                                    <TrendingUp className="h-3 w-3 mr-1" />
-                                    +12.5%
-                                </Badge>
+                                <span className="text-sm text-gray-600">
+                                    {shareValue > 0 ? `$${shareValue.toFixed(2)} per share` : 'Price not available'}
+                                </span>
+                                {shareValue > 0 && sharePriceChange !== null && (
+                                    <Badge 
+                                        variant="outline" 
+                                        className={`${
+                                            sharePriceChange > 0 
+                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                                                : sharePriceChange < 0 
+                                                ? 'bg-red-50 text-red-700 border-red-200'
+                                                : 'bg-gray-50 text-gray-700 border-gray-200'
+                                        }`}
+                                    >
+                                        {sharePriceChange > 0 ? (
+                                            <TrendingUp className="h-3 w-3 mr-1" />
+                                        ) : sharePriceChange < 0 ? (
+                                            <TrendingDown className="h-3 w-3 mr-1" />
+                                        ) : null}
+                                        {sharePriceChange > 0 ? '+' : ''}{sharePriceChange.toFixed(1)}%
+                                    </Badge>
+                                )}
                             </div>
                         </div>
                     </CardContent>

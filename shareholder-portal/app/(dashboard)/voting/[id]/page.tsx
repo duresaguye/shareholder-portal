@@ -83,7 +83,7 @@ export default function AdminVoteDetailsPage() {
 
     const handleExportResults = () => {
         console.log("Exporting voting results");
-        // Implement export logic here
+      
     };
 
     const handleVote = async (voteType: "YES" | "NO" | "ABSTAIN") => {

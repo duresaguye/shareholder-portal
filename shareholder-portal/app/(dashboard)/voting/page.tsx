@@ -41,7 +41,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Proposal } from "@/lib/types/api";
 
-// Component for individual proposal card to properly use hooks
+
 function ProposalCard({ proposal, totalShareholders, onViewDetails }: { proposal: Proposal; totalShareholders: number; onViewDetails: (id: string) => void }) {
     const { data: votingResultsData } = useVotingResults(proposal.id);
     const results = votingResultsData?.votingResults;
