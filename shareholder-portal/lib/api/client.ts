@@ -1,5 +1,6 @@
 // API Client Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || 'https://fayda-profile.velnet.et:9889';
 
 export interface ApiResponse<T> {
   data?: T;
