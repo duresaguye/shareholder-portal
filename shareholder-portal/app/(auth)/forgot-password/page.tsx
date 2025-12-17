@@ -14,10 +14,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function ForgotPasswordPage() {
-    const { register, handleSubmit } = useForm();
+interface ForgotPasswordFormValues {
+    email: string;
+}
 
-    const onSubmit = (data: any) => {
+export default function ForgotPasswordPage() {
+    const { register, handleSubmit } = useForm<ForgotPasswordFormValues>();
+
+    const onSubmit = (data: ForgotPasswordFormValues) => {
         console.log(data);
         // Handle forgot password logic here
     };

@@ -25,16 +25,11 @@ interface RegisterFormValues {
     email: string;
     password: string;
     confirmPassword: string;
-    role: 'admin' | 'shareholder';
 }
 
 export default function RegisterPage() {
     const router = useRouter();
-    const { register, handleSubmit, formState: { errors }, watch } = useForm<RegisterFormValues>({
-        defaultValues: {
-            role: 'shareholder'
-        }
-    });
+    const { register, handleSubmit, formState: { errors }, watch } = useForm<RegisterFormValues>();
     const [showPassword, setShowPassword] = useState(false);
     const [passwordStrength, setPasswordStrength] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
@@ -55,12 +50,13 @@ export default function RegisterPage() {
                 firstName: data.firstName,
                 lastName: data.lastName,
                 email: data.email,
-                role: data.role,
+                role: 'admin', // Only admin accounts can be registered directly
             });
             // Redirect to login after successful registration
             router.push('/login?registered=true');
-        } catch (err: any) {
-            setError(err.message || 'Registration failed. Please try again.');
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Registration failed. Please try again.';
+            setError(message);
         } finally {
             setIsLoading(false);
         }
@@ -89,7 +85,7 @@ export default function RegisterPage() {
                             Create Account
                         </CardTitle>
                         <CardDescription className="text-center text-gray-600">
-                            Register to access shareholder announcements and documents
+                            Register an admin account. Shareholders must be added through the voting process.
                         </CardDescription>
                     </CardHeader>
                     
@@ -187,20 +183,6 @@ export default function RegisterPage() {
                                     {errors.email && (
                                         <p className="text-sm text-red-600">{errors.email.message}</p>
                                     )}
-                                </div>
-                                
-                                <div className="space-y-2">
-                                    <Label htmlFor="role" className="text-gray-700 font-medium">
-                                        Account Type
-                                    </Label>
-                                    <select
-                                        id="role"
-                                        {...register("role", { required: true })}
-                                        className="w-full h-12 px-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
-                                    >
-                                        <option value="shareholder">Shareholder</option>
-                                        <option value="admin">Admin</option>
-                                    </select>
                                 </div>
                                 
                                 <div className="space-y-2">

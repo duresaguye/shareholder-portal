@@ -14,7 +14,7 @@ export function ProfileHeader() {
     const ownershipPercent = shareholder?.ownership ?? 0; // percentage
     const votingPowerPercent = ownershipPercent;
     const totalCompanyShares = 1_000_000; // fallback; replace with real total if available
-    const shareValue = 0; // not provided by API
+    const shareValue: number = 0; // not provided by API
     const initials = shareholder ? `${shareholder.firstName?.[0] ?? ""}${shareholder.lastName?.[0] ?? ""}` || "SH" : "SH";
 
     return (
@@ -61,7 +61,7 @@ export function ProfileHeader() {
                                     <div>
                                         <div className="text-xs font-medium text-blue-700">VOTING POWER</div>
                                         <div className="text-lg font-bold text-blue-800">
-                                            {votingPowerPercent}% of total votes
+                                            {votingPowerPercent.toFixed(2)}% of total votes
                                         </div>
                                     </div>
                                 </div>
@@ -156,7 +156,7 @@ export function ProfileHeader() {
                         <div>
                             <h4 className="font-medium text-blue-900">How Voting Power Works</h4>
                             <p className="text-sm text-blue-800 mt-1">
-                                Your vote counts for {votingPowerPercent}% of the total vote. This is calculated based on your {totalShares.toLocaleString()} shares out of {totalCompanyShares.toLocaleString()} total company shares (or ownership provided by the system).
+                                Your vote counts for {votingPowerPercent.toFixed(2)}% of the total vote. This is calculated based on your {totalShares.toLocaleString()} shares out of {totalCompanyShares.toLocaleString()} total company shares (or ownership provided by the system).
                             </p>
                         </div>
                     </div>

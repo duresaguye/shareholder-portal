@@ -64,6 +64,7 @@ import { useShareholders } from "@/lib/hooks/useShareholders";
 import { useCreateNewShareholderProposal } from "@/lib/hooks/useProposals";
 import { useShareClasses } from "@/lib/hooks/useShareClasses";
 import { useCreateTestShareholders } from "@/lib/hooks/useTest";
+import { Shareholder } from "@/lib/types/api";
 
 export default function ShareholdersPage() {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -128,7 +129,7 @@ export default function ShareholdersPage() {
         const apiData = currentData[dataKey] || [];
         
         return apiData
-            .map((item: any) => ({
+            .map((item: Shareholder) => ({
                 id: item.id,
                 name: `${item.firstName} ${item.lastName}`,
                 email: item.email,
@@ -145,7 +146,7 @@ export default function ShareholdersPage() {
                 username: item.username,
                 lastLogin: item.lastLogin
             }))
-            .filter((shareholder: any) => {
+            .filter((shareholder) => {
                 if (!searchTerm) return true;
                 const searchLower = searchTerm.toLowerCase();
                 return (
@@ -189,7 +190,7 @@ export default function ShareholdersPage() {
 
             const proposalData = {
                 title: `Add New Shareholder - ${newShareholder.firstName} ${newShareholder.lastName}`,
-                description: `Proposal to add ${newShareholder.firstName} ${newShareholder.lastName} as a new shareholder with ${newShareholder.ownership}% ownership through ${newShareholder.acquisitionMode === 'purchaseByDilution' ? 'dilution' : 'single shareholder purchase'}.`,
+                description: `Proposal to add ${newShareholder.firstName} ${newShareholder.lastName} as a new shareholder with ${parseFloat(newShareholder.ownership || '0').toFixed(2)}% ownership through ${newShareholder.acquisitionMode === 'purchaseByDilution' ? 'dilution' : 'single shareholder purchase'}.`,
                 acquisitionMode: newShareholder.acquisitionMode,
                 fromShareholderId: newShareholder.acquisitionMode === 'purchaseFromSingle' ? newShareholder.fromShareholderId : undefined,
                 newShareholder: {

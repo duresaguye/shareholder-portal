@@ -1,7 +1,13 @@
 import { Request, Response } from "express";
+import { Announcement, Shareholder } from "@prisma/client";
 import { prisma } from "../prismaClient";
 
-const mapAnnouncement = (announcement: any) => {
+type AnnouncementWithAuthor = Announcement & {
+  author?: Pick<Shareholder, "firstName" | "lastName" | "role">;
+  authorName?: string;
+};
+
+const mapAnnouncement = (announcement: AnnouncementWithAuthor) => {
   const authorName =
     announcement.author?.firstName && announcement.author?.lastName
       ? `${announcement.author.firstName} ${announcement.author.lastName}`
@@ -53,9 +59,10 @@ export const getAnnouncements = async (_req: Request, res: Response) => {
     });
 
     return res.json(announcements.map(mapAnnouncement));
-  } catch (e: any) {
+  } catch (e) {
     console.error("Error fetching announcements:", e);
-    return res.status(500).json({ error: e.message });
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -77,9 +84,10 @@ export const getAnnouncementById = async (req: Request, res: Response) => {
     }
 
     return res.json(mapAnnouncement(announcement));
-  } catch (e: any) {
+  } catch (e) {
     console.error("Error fetching announcement:", e);
-    return res.status(500).json({ error: e.message });
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -134,8 +142,9 @@ export const createAnnouncement = async (req: Request, res: Response) => {
     });
 
     return res.status(201).json(mapAnnouncement({ ...created, authorName: author || undefined }));
-  } catch (e: any) {
+  } catch (e) {
     console.error("Error creating announcement:", e);
-    return res.status(500).json({ error: e.message });
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };

@@ -7,7 +7,7 @@ import bcrypt from "bcrypt";
 import { AuthRequest } from "../middlewares/authMiddleware";
 
 // Helper to merge metadata stored in description back into the proposal response
-const mergeProposalMetadata = (proposal: any) => {
+const mergeProposalMetadata = (proposal: { description?: string } & Record<string, unknown>) => {
   if (!proposal?.description || !proposal.description.includes("METADATA:")) return proposal;
   const [, metaRaw] = proposal.description.split("METADATA:");
   try {
@@ -97,9 +97,10 @@ export const createNewShareholderProposal = async (req: AuthRequest, res: Respon
       message: "New shareholder proposal created successfully",
       proposal: mergeProposalMetadata(proposal)
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error creating new shareholder proposal:", error);
-    return res.status(500).json({ error: error.message });
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -141,9 +142,10 @@ export const createShareTransferProposal = async (req: AuthRequest, res: Respons
       proposal: mergeProposalMetadata(result.proposal),
       transferRequest: result.transferRequest
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error creating share transfer proposal:", error);
-    return res.status(500).json({ error: error.message });
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -186,9 +188,10 @@ export const createGeneralProposal = async (req: AuthRequest, res: Response) => 
       message: `${type} proposal created successfully`,
       proposal: mergeProposalMetadata(proposal)
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error creating general proposal:", error);
-    return res.status(500).json({ error: error.message });
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -198,9 +201,10 @@ export const getAllProposals = async (req: Request, res: Response) => {
     const proposals = await ProposalService.getAllProposals();
     const enriched = proposals.map(mergeProposalMetadata);
     return res.json({ proposals: enriched });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error fetching proposals:", error);
-    return res.status(500).json({ error: error.message });
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -220,9 +224,10 @@ export const getProposalById = async (req: Request, res: Response) => {
       proposal: mergeProposalMetadata(proposal),
       votingResults
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error fetching proposal:", error);
-    return res.status(500).json({ error: error.message });
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -243,11 +248,11 @@ export const castVote = async (req: AuthRequest, res: Response) => {
 
     // Check if voting should be finalized
     const shouldClose = await VotingService.shouldCloseVoting(id);
-    let votingResults = null;
+    let votingResults: Awaited<ReturnType<typeof VotingService.calculateVotingResults>> | null = null;
 
-    let executionResult = null;
+    let executionResult: unknown = null;
     let executionSuccess = false;
-    let proposalType = null;
+    let proposalType: string | null = null;
 
     if (shouldClose) {
       votingResults = await VotingService.finalizeVoting(id);
@@ -256,21 +261,27 @@ export const castVote = async (req: AuthRequest, res: Response) => {
       if (votingResults.isApproved) {
         try {
           const proposal = await ProposalService.getProposalById(id);
-          proposalType = proposal.type;
+          if (!proposal) {
+            throw new Error("Proposal not found during execution");
+          }
+          proposalType = proposal.type as string;
           
           if (proposal.type === 'NEW_SHAREHOLDER') {
-            executionResult = await ProposalService.executeNewShareholderProposal(id);
-            console.log("New shareholder created successfully:", executionResult.id);
+            const result = await ProposalService.executeNewShareholderProposal(id);
+            executionResult = result;
+            console.log("New shareholder created successfully");
             executionSuccess = true;
           } else if (proposal.type === 'TRANSFER_APPROVAL') {
-            executionResult = await ProposalService.executeShareTransferProposal(id);
-            console.log("Share transfer executed successfully:", executionResult);
+            const result = await ProposalService.executeShareTransferProposal(id);
+            executionResult = result;
+            console.log("Share transfer executed successfully:", result);
             executionSuccess = true;
           }
-        } catch (executionError: any) {
+        } catch (executionError) {
           console.error("Error executing approved proposal:", executionError);
           // Re-throw to ensure error is visible
-          throw new Error(`Failed to execute approved proposal: ${executionError.message}`);
+          const message = executionError instanceof Error ? executionError.message : "Unknown error";
+          throw new Error(`Failed to execute approved proposal: ${message}`);
         }
       }
     }
@@ -281,15 +292,17 @@ export const castVote = async (req: AuthRequest, res: Response) => {
       votingClosed: shouldClose,
       votingResults,
       executionSuccess,
-      executionResult: executionSuccess ? {
-        type: proposalType,
-        shareholderId: executionResult?.id,
-        message: "Proposal executed successfully"
-      } : null
+      executionResult: executionSuccess
+        ? {
+            type: proposalType,
+            message: "Proposal executed successfully",
+          }
+        : null
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error casting vote:", error);
-    return res.status(500).json({ error: error.message });
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -298,9 +311,10 @@ export const getVotingResults = async (req: Request, res: Response) => {
     const { id } = req.params;
     const votingResults = await VotingService.calculateVotingResults(id);
     return res.json({ votingResults });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error getting voting results:", error);
-    return res.status(500).json({ error: error.message });
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -313,8 +327,11 @@ export const finalizeVoting = async (req: Request, res: Response) => {
     // If approved, execute the proposal
     if (votingResults.isApproved) {
       const proposal = await ProposalService.getProposalById(id);
-      
-      let executionResult = null;
+      if (!proposal) {
+        return res.status(404).json({ error: "Proposal not found during execution" });
+      }
+
+      let executionResult: unknown = null;
       if (proposal.type === 'NEW_SHAREHOLDER') {
         executionResult = await ProposalService.executeNewShareholderProposal(id);
       } else if (proposal.type === 'TRANSFER_APPROVAL') {
@@ -332,8 +349,9 @@ export const finalizeVoting = async (req: Request, res: Response) => {
       message: "Voting finalized - proposal rejected",
       votingResults
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error finalizing voting:", error);
-    return res.status(500).json({ error: error.message });
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };

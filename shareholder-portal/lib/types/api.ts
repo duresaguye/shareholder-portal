@@ -1,4 +1,4 @@
-// API Types
+
 export interface Shareholder {
   id: string;
   username: string;
@@ -38,7 +38,7 @@ export interface Proposal {
   requiredThreshold: number;
   createdAt: string;
   updatedAt: string;
-  // Optional metadata fields for general/amendment and election-style proposals
+
   candidates?: Array<{
     name: string;
     position?: string;
@@ -235,6 +235,36 @@ export interface ProposalResponse {
 
 export interface VotingResultsResponse {
   votingResults: VotingResult;
+}
+
+// Proposal mutation responses
+export interface CreateProposalResponse {
+  message: string;
+  proposal: Proposal;
+}
+
+export interface CreateShareTransferProposalResponse {
+  message: string;
+  proposal: Proposal;
+  transferRequest: ShareTransferRequest;
+}
+
+export interface CastVoteResponse {
+  message: string;
+  vote: Vote;
+  votingClosed?: boolean;
+  votingResults?: VotingResult;
+  executionSuccess?: boolean;
+  executionResult?: {
+    type?: string | null;
+    message: string;
+  } | null;
+}
+
+export interface FinalizeVotingResponse {
+  message: string;
+  votingResults: VotingResult;
+  executionResult?: unknown;
 }
 
 export interface ReportsResponse {

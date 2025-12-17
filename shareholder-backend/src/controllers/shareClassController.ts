@@ -16,9 +16,10 @@ export const getAllShareClasses = async (req: Request, res: Response) => {
     });
 
     return res.json({ shareClasses });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error fetching share classes:", error);
-    return res.status(500).json({ error: error.message });
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -45,8 +46,9 @@ export const createShareClass = async (req: Request, res: Response) => {
       message: "Share class created successfully",
       shareClass
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error creating share class:", error);
-    return res.status(500).json({ error: error.message });
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };

@@ -97,8 +97,9 @@ export const createTestShareholders = async (req: Request, res: Response) => {
       note: "These shareholders can now login and participate in voting. Total ownership: 100%"
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error creating test shareholders:", error);
-    return res.status(500).json({ error: error.message });
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };

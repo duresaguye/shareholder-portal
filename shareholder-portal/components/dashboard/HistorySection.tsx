@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, FileText, TrendingUp, Vote, FileCheck, Calendar } from "lucide-react";
+import { Download, FileText, TrendingUp, Vote as VoteIcon, FileCheck, Calendar } from "lucide-react";
 import { useProposals } from "@/lib/hooks/useProposals";
 import { useCurrentUser } from "@/lib/hooks/useShareholders";
+import type { Proposal, Vote } from "@/lib/types/api";
 import { useMemo } from "react";
 
 export function HistorySection() {
@@ -20,14 +21,14 @@ export function HistorySection() {
     const votes = useMemo(() => {
         if (!currentUserId) return [];
         return proposals
-            .flatMap((p: any) =>
+            .flatMap((p: Proposal) =>
                 (p.votes || [])
-                    .filter((v: any) => v.voterId === currentUserId || v.shareholderId === currentUserId)
-                    .map((v: any) => ({
+                    .filter((v: Vote) => v.shareholderId === currentUserId)
+                    .map((v: Vote) => ({
                         id: `${p.id}-${v.id}`,
                         date: v.createdAt ? new Date(v.createdAt).toISOString().split("T")[0] : "—",
                         proposal: p.title ?? p.description ?? "Proposal",
-                        vote: v.vote?.toLowerCase?.() ?? "—",
+                        vote: v.vote?.toLowerCase() ?? "—",
                         result: p.status ?? "pending",
                     }))
             )
@@ -35,8 +36,25 @@ export function HistorySection() {
     }, [currentUserId, proposals]);
 
     // No purchase/doc endpoints yet
-    const purchases: any[] = [];
-    const documents: any[] = [];
+    interface Purchase {
+        id: string;
+        date: string;
+        transaction: string;
+        shares: number;
+        pricePerShare: number;
+        totalValue: number;
+    }
+
+    interface Document {
+        id: string;
+        title: string;
+        type: string;
+        size: string;
+        date: string;
+    }
+
+    const purchases: Purchase[] = [];
+    const documents: Document[] = [];
 
     return (
         <Card className="col-span-4 border-0 shadow-lg bg-gradient-to-br from-white to-gray-50/50">
@@ -63,7 +81,7 @@ export function HistorySection() {
                             Share History
                         </TabsTrigger>
                         <TabsTrigger value="voting" className="rounded-lg data-[state=active]:bg-white gap-2">
-                            <Vote className="h-4 w-4" />
+                            <VoteIcon className="h-4 w-4" />
                             Voting History
                         </TabsTrigger>
                         <TabsTrigger value="documents" className="rounded-lg data-[state=active]:bg-white gap-2">
@@ -108,8 +126,8 @@ export function HistorySection() {
                     <TabsContent value="voting" className="space-y-4">
                         <div className="rounded-2xl border border-gray-200 overflow-hidden bg-white">
                             <div className="p-4 border-b bg-gray-50/50">
-                                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                                    <Vote className="h-5 w-5 text-emerald-600" />
+                                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                                    <VoteIcon className="h-5 w-5 text-emerald-600" />
                                     Voting Activity
                                 </h3>
                             </div>

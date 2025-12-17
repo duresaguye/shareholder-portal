@@ -191,8 +191,8 @@ export default function ShareholderDetailsPage() {
       if (previousPurchases.length === 0) return null;
       
       // Calculate average price of previous purchases
-      const previousTotalValue = previousPurchases.reduce((sum: number, s: any) => sum + (s.price * s.amount), 0);
-      const previousTotalAmount = previousPurchases.reduce((sum: number, s: any) => sum + s.amount, 0);
+      const previousTotalValue = previousPurchases.reduce((sum: number, s: { price: number; amount: number }) => sum + (s.price * s.amount), 0);
+      const previousTotalAmount = previousPurchases.reduce((sum: number, s: { price: number; amount: number }) => sum + s.amount, 0);
       const previousAvgPrice = previousTotalAmount > 0 ? previousTotalValue / previousTotalAmount : 0;
       
       if (previousAvgPrice === 0) return null;
@@ -209,13 +209,13 @@ export default function ShareholderDetailsPage() {
       const now = new Date();
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       
-      const recentShares = shares.filter((s: any) => new Date(s.issueDate) >= thirtyDaysAgo);
-      const previousShares = shares.filter((s: any) => new Date(s.issueDate) < thirtyDaysAgo);
+      const recentShares = shares.filter((s: { issueDate: string }) => new Date(s.issueDate) >= thirtyDaysAgo);
+      const previousShares = shares.filter((s: { issueDate: string }) => new Date(s.issueDate) < thirtyDaysAgo);
       
       if (recentShares.length === 0 || previousShares.length === 0) return null;
       
-      const recentTotal = recentShares.reduce((sum: number, s: any) => sum + s.amount, 0);
-      const previousTotal = previousShares.reduce((sum: number, s: any) => sum + s.amount, 0);
+      const recentTotal = recentShares.reduce((sum: number, s: { amount: number }) => sum + s.amount, 0);
+      const previousTotal = previousShares.reduce((sum: number, s: { amount: number }) => sum + s.amount, 0);
       
       if (previousTotal === 0) return null;
       

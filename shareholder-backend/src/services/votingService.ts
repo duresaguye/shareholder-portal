@@ -55,19 +55,22 @@ export class VotingService {
     const totalOwnership = allApprovedShareholders.reduce((sum: number, s: { ownership: number }) => sum + s.ownership, 0);
 
     // Calculate total voting weight (only approved shareholders who voted)
-    const totalVotingWeight = votes.reduce((sum: any, vote: { shareholder: { status: any; ownership: any; }; }) => {
-      if (vote.shareholder.status === ShareholderStatus.approved) {
-        return sum + vote.shareholder.ownership;
-      }
-      return sum;
-    }, 0);
+    const totalVotingWeight = votes.reduce(
+      (sum: number, vote) => {
+        if (vote.shareholder.status === ShareholderStatus.approved) {
+          return sum + vote.shareholder.ownership;
+        }
+        return sum;
+      },
+      0
+    );
 
     // Calculate weighted votes
     let yesWeight = 0;
     let noWeight = 0;
     let abstainWeight = 0;
 
-    votes.forEach((vote: { shareholder: { status: any; ownership: any; }; vote: any; }) => {
+    votes.forEach((vote) => {
       if (vote.shareholder.status === ShareholderStatus.approved) {
         const weight = vote.shareholder.ownership;
         switch (vote.vote) {
@@ -113,8 +116,8 @@ export class VotingService {
     proposalId: string, 
     shareholderId: string, 
     voteType: VoteType
-  ): Promise<any> {
-    return await prisma.$transaction(async (tx: { shareholder: { findUnique: (arg0: { where: { id: string; }; select: { id: boolean; ownership: boolean; status: boolean; }; }) => any; }; proposal: { findUnique: (arg0: { where: { id: string; }; select: { id: boolean; status: boolean; }; }) => any; }; vote: { findFirst: (arg0: { where: { proposalId: string; shareholderId: string; }; }) => any; update: (arg0: { where: { id: any; }; data: { vote: VoteType; voteWeight: any; }; }) => any; create: (arg0: { data: { proposalId: string; shareholderId: string; vote: VoteType; voteWeight: any; }; }) => any; }; }) => {
+  ): Promise<unknown> {
+    return await prisma.$transaction(async (tx) => {
       // Check if shareholder exists and is approved
       const shareholder = await tx.shareholder.findUnique({
         where: { id: shareholderId },
@@ -175,20 +178,12 @@ export class VotingService {
   }
 
   /**
-   * Check if voting should be closed (either threshold reached or all shareholders voted)
+   * Check if voting should be closed (ONLY when all shareholders have voted)
+   * This ensures that votes stay open until everyone has cast their vote,
+   * preventing early closure that could be reversed by remaining votes.
    */
   static async shouldCloseVoting(proposalId: string): Promise<boolean> {
-    // First check if threshold is reached
-    const votingResult = await this.calculateVotingResults(proposalId);
-    
-    // If threshold is reached (approved or rejected), close voting
-    if (votingResult.isApproved) {
-      return true;
-    }
-
-    // Also check if threshold for rejection is reached (if NO votes exceed threshold)
-    // For now, we'll close if all shareholders voted OR if threshold is reached
-    // Check if all shareholders have voted
+    // Get all approved shareholders who are eligible to vote
     const approvedShareholders = await prisma.shareholder.findMany({
       where: { 
         status: ShareholderStatus.approved,
@@ -197,27 +192,27 @@ export class VotingService {
       select: { id: true }
     });
 
-    // Get votes for this proposal
+    // Get all votes for this proposal
     const votes = await prisma.vote.findMany({
       where: { proposalId },
       select: { shareholderId: true }
     });
 
-    const votedShareholderIds = new Set(votes.map((v: { shareholderId: any; }) => v.shareholderId));
+    const votedShareholderIds = new Set(votes.map((v) => v.shareholderId));
     
-    // Check if all shareholders have voted
-    const allVoted = approvedShareholders.every((s: { id: unknown; }) => votedShareholderIds.has(s.id));
+    // Check if ALL shareholders have voted
+    const allVoted = approvedShareholders.every((s) => votedShareholderIds.has(s.id));
     
-    // Also check if we can't reach threshold anymore (if remaining votes can't push it over)
-    // For simplicity, we'll close if threshold is reached OR all voted
-    return allVoted || votingResult.isApproved;
+    // ONLY close voting when ALL shareholders have voted
+    // This prevents early closure that could be reversed by remaining votes
+    return allVoted;
   }
 
   /**
    * Finalize voting and update proposal status
    */
   static async finalizeVoting(proposalId: string): Promise<VotingResult> {
-    return await prisma.$transaction(async (tx: { proposal: { update: (arg0: { where: { id: string; }; data: { status: any; }; }) => any; }; }) => {
+    return await prisma.$transaction(async (tx) => {
       const votingResult = await this.calculateVotingResults(proposalId);
 
       // Update proposal status

@@ -6,7 +6,7 @@ export const authApi = {
     return apiClient.post<LoginResponse>('/api/auth/login', data);
   },
 
-  register: async (data: RegisterRequest): Promise<{ message: string; user: any }> => {
+  register: async (data: RegisterRequest): Promise<{ message: string; user: { id: string; username: string; role: string; status: string } }> => {
     return apiClient.post('/api/auth/register', data);
   },
 

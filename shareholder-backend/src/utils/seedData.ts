@@ -1,5 +1,6 @@
-import { ShareClassType } from "@prisma/client";
+import { ShareClassType, ShareholderStatus, ShareholderType, UserRole } from "@prisma/client";
 import { prisma } from "../prismaClient";
+import bcrypt from "bcrypt";
 
 export async function seedShareClasses() {
   try {
@@ -43,15 +44,173 @@ export async function seedShareClasses() {
   }
 }
 
+export async function seedTestShareholders() {
+  try {
+    // Check if our specific test shareholders already exist
+    const existingTestShareholders = await prisma.shareholder.findMany({
+      where: {
+        username: {
+          in: ["admin.alice", "bob.shareholder", "cara.institution"]
+        }
+      }
+    });
+
+    if (existingTestShareholders.length === 3) {
+      console.log("Test shareholders already exist, skipping shareholder seed");
+      return;
+    }
+
+    // Ensure COMMON share class exists
+    let commonShareClass = await prisma.shareClass.findFirst({
+      where: { name: ShareClassType.COMMON }
+    });
+
+    if (!commonShareClass) {
+      commonShareClass = await prisma.shareClass.create({
+        data: {
+          name: ShareClassType.COMMON,
+          description: "Common shares with voting rights"
+        }
+      });
+    }
+
+    // Simple test password for all seeded users
+    const password = "Password123!";
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Create a few test shareholders (1 admin + 2 normal shareholders)
+    const alice =
+      existingTestShareholders.find((s) => s.username === "admin.alice") ??
+      (await prisma.shareholder.create({
+        data: {
+          username: "admin.alice",
+          passwordHash,
+          firstName: "Alice",
+          lastName: "Admin",
+          email: "alice.admin@example.com",
+          phone: "+1-555-0001",
+          address: "1 Admin Street",
+          type: ShareholderType.individual,
+          status: ShareholderStatus.approved,
+          role: UserRole.admin,
+          ownership: 0, // will be recalculated from shares
+          totalShares: 5000
+        }
+      }));
+
+    const bob =
+      existingTestShareholders.find((s) => s.username === "bob.shareholder") ??
+      (await prisma.shareholder.create({
+        data: {
+          username: "bob.shareholder",
+          passwordHash,
+          firstName: "Bob",
+          lastName: "Investor",
+          email: "bob.shareholder@example.com",
+          phone: "+1-555-0002",
+          address: "2 Market Road",
+          type: ShareholderType.individual,
+          status: ShareholderStatus.approved,
+          role: UserRole.shareholder,
+          ownership: 0,
+          totalShares: 3000
+        }
+      }));
+
+    const cara =
+      existingTestShareholders.find((s) => s.username === "cara.institution") ??
+      (await prisma.shareholder.create({
+        data: {
+          username: "cara.institution",
+          passwordHash,
+          firstName: "Cara",
+          lastName: "Capital",
+          email: "cara.institution@example.com",
+          phone: "+1-555-0003",
+          address: "3 Wall Street",
+          type: ShareholderType.institution,
+          status: ShareholderStatus.approved,
+          role: UserRole.shareholder,
+          ownership: 0,
+          totalShares: 2000
+        }
+      }));
+
+    // Create ShareholderShare records in COMMON class
+    const issueDate = new Date();
+
+    await prisma.shareholderShare.createMany({
+      data: [
+        {
+          shareholderId: alice.id,
+          shareClassId: commonShareClass.id,
+          amount: 5000,
+          price: 1.5,
+          issueDate
+        },
+        {
+          shareholderId: bob.id,
+          shareClassId: commonShareClass.id,
+          amount: 3000,
+          price: 1.2,
+          issueDate
+        },
+        {
+          shareholderId: cara.id,
+          shareClassId: commonShareClass.id,
+          amount: 2000,
+          price: 2.0,
+          issueDate
+        }
+      ]
+    });
+
+    // Recalculate ownership percentages based on totalShares
+    const totalShares =
+      (alice.totalShares || 0) +
+      (bob.totalShares || 0) +
+      (cara.totalShares || 0);
+
+    if (totalShares > 0) {
+      await prisma.shareholder.updateMany({
+        where: { id: { in: [alice.id, bob.id, cara.id] } },
+        data: { ownership: 0 }
+      });
+
+      await prisma.shareholder.update({
+        where: { id: alice.id },
+        data: { ownership: (alice.totalShares / totalShares) * 100 }
+      });
+
+      await prisma.shareholder.update({
+        where: { id: bob.id },
+        data: { ownership: (bob.totalShares / totalShares) * 100 }
+      });
+
+      await prisma.shareholder.update({
+        where: { id: cara.id },
+        data: { ownership: (cara.totalShares / totalShares) * 100 }
+      });
+    }
+
+    console.log("Test shareholders seeded successfully");
+    console.log("You can log in with username 'admin.alice' and password 'Password123!'");
+  } catch (error) {
+    console.error("Error seeding test shareholders:", error);
+  }
+}
+
 // Run seed if this file is executed directly
 if (require.main === module) {
-  seedShareClasses()
-    .then(() => {
+  (async () => {
+    try {
+      await seedShareClasses();
+      await seedTestShareholders();
       console.log("Seeding completed");
       process.exit(0);
-    })
-    .catch((error) => {
+    } catch (error) {
       console.error("Seeding failed:", error);
       process.exit(1);
-    });
+    }
+  })();
 }

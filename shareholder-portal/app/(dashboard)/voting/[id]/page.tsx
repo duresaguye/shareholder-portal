@@ -280,7 +280,11 @@ export default function AdminVoteDetailsPage() {
                                                         <div><span className="font-medium">Current Shares:</span> {proposal.targetShareholder.totalShares}</div>
                                                         <div><span className="font-medium">Current Ownership:</span> {proposal.targetShareholder.ownership?.toFixed(2) || '0.00'}%</div>
                                                         <div className="mt-2 text-xs text-gray-600">
-                                                            After transfer: {proposal.targetShareholder.totalShares - newShareholderMeta.targetShares} shares
+                                                            After transfer: {
+                                                                typeof proposal.targetShareholder.totalShares === "number"
+                                                                    ? proposal.targetShareholder.totalShares - newShareholderMeta.targetShares
+                                                                    : "N/A"
+                                                            } shares
                                                         </div>
                                                     </div>
                                                 ) : shareholdersMap.get(metadata.fromShareholderId) ? (

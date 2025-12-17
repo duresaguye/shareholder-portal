@@ -15,16 +15,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Lock, Mail, Eye, EyeOff, AlertCircle } from "lucide-react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { authApi } from "@/lib/api/auth";
 
-export default function LoginPage() {
-    type LoginForm = {
-        username: string;
-        password: string;
-        remember?: boolean;
-    };
+type LoginForm = {
+    username: string;
+    password: string;
+    remember?: boolean;
+};
 
+function LoginFormContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
@@ -51,8 +51,9 @@ export default function LoginPage() {
                 // Fallback to shareholder dashboard if role is unknown
                 router.push('/shareholder-dashboard');
             }
-        } catch (err: any) {
-            setError(err.message || 'Login failed. Please check your credentials.');
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Login failed. Please check your credentials.';
+            setError(message);
         } finally {
             setIsLoading(false);
         }
@@ -115,7 +116,7 @@ export default function LoginPage() {
                                 
                                 <div className="space-y-2">
                                     <Label htmlFor="password" className="text-gray-700 font-medium">
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex itemscenter gap-2">
                                             <Lock className="h-4 w-4" />
                                             Password
                                         </div>
@@ -208,5 +209,13 @@ export default function LoginPage() {
                 
             </div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={null}>
+            <LoginFormContent />
+        </Suspense>
     );
 }

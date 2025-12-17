@@ -12,7 +12,7 @@ export function ShareSummary() {
     const ownership = shareholder?.ownership || 0;
     
     // Calculate total shares in the system (assuming 1,000,000 for now)
-    // In a real app, this would come from an API endpoint
+ //fix? later replace with actual data from API
     const totalSystemShares = 1000000;
     const ownershipPercentage = totalSystemShares > 0 
         ? ((totalShares / totalSystemShares) * 100).toFixed(2)

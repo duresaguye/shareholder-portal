@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { UserRole } from "@prisma/client";
 import bcrypt from "bcrypt";
-import jwt, { Secret } from "jsonwebtoken";
+import jwt, { Secret, SignOptions } from "jsonwebtoken";
 import { prisma } from "../prismaClient";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_secret";
@@ -59,8 +59,9 @@ export const register = async (req: Request, res: Response) => {
         status: user.status 
       } 
     });
-  } catch (e: any) {
-    return res.status(500).json({ error: e.message });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 }
 
@@ -147,8 +148,9 @@ export const addShareholder = async (req: Request, res: Response) => {
         totalShares: shareholder.totalShares
       } 
     });
-  } catch (e: any) {
-    return res.status(500).json({ error: e.message });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -174,7 +176,7 @@ export const login = async (req: Request, res: Response) => {
         username: user.username
       },
       JWT_SECRET as Secret,
-      { expiresIn: JWT_EXPIRES as any }
+      { expiresIn: JWT_EXPIRES } as SignOptions
     );
     // lastLogin update
     await prisma.shareholder.update({
@@ -182,7 +184,8 @@ export const login = async (req: Request, res: Response) => {
       data: { lastLogin: new Date() }
     });
     return res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
-  } catch (e: any) {
-    return res.status(500).json({ error: e.message });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 }

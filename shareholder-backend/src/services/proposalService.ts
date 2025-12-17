@@ -48,8 +48,8 @@ export class ProposalService {
    */
   static async createNewShareholderProposal(
     data: NewShareholderProposalData
-  ): Promise<any> {
-    return await prisma.$transaction(async (tx: { shareholder: { findUnique: (arg0: { where: { id: string; }; }) => any; }; proposal: { create: (arg0: { data: { title: string; description: string; type: any; status: any; requiredThreshold: number; authorId: string; targetShareholderId: string | null; }; }) => any; update: (arg0: { where: { id: any; }; data: { description: string; }; }) => any; }; }) => {
+  ) {
+    return await prisma.$transaction(async (tx) => {
       // Validate the from shareholder if purchaseFromSingle
       if (data.acquisitionMode === 'purchaseFromSingle') {
         if (!data.fromShareholderId) {
@@ -109,7 +109,7 @@ export class ProposalService {
    */
   static async createShareTransferProposal(
     data: ShareTransferProposalData
-  ): Promise<any> {
+  ) {
     return await prisma.$transaction(async (tx) => {
       // Validate shareholders exist
       const fromShareholder = await tx.shareholder.findUnique({
@@ -178,7 +178,7 @@ export class ProposalService {
   static async createGeneralProposal(
     data: GeneralProposalData,
     proposalType: ProposalType
-  ): Promise<any> {
+  ) {
     return await prisma.$transaction(async (tx) => {
       // Create the proposal
       const proposal = await tx.proposal.create({
@@ -214,7 +214,7 @@ export class ProposalService {
   /**
    * Execute an approved new shareholder proposal
    */
-  static async executeNewShareholderProposal(proposalId: string): Promise<any> {
+  static async executeNewShareholderProposal(proposalId: string) {
     return await prisma.$transaction(async (tx) => {
       const proposal = await tx.proposal.findUnique({
         where: { id: proposalId }
@@ -267,7 +267,7 @@ export class ProposalService {
   /**
    * Execute an approved share transfer proposal
    */
-  static async executeShareTransferProposal(proposalId: string): Promise<any> {
+  static async executeShareTransferProposal(proposalId: string) {
     return await prisma.$transaction(async (tx) => {
       const proposal = await tx.proposal.findUnique({
         where: { id: proposalId },
@@ -311,7 +311,7 @@ export class ProposalService {
   /**
    * Get all open proposals
    */
-  static async getOpenProposals(): Promise<any[]> {
+  static async getOpenProposals() {
     return await prisma.proposal.findMany({
       where: { status: ProposalStatus.open },
       include: {
@@ -343,7 +343,7 @@ export class ProposalService {
   /**
    * Get all proposals (open, approved, rejected, closed)
    */
-  static async getAllProposals(): Promise<any[]> {
+  static async getAllProposals() {
     return await prisma.proposal.findMany({
       include: {
         author: {
@@ -408,7 +408,7 @@ export class ProposalService {
   /**
    * Get proposal by ID with full details
    */
-  static async getProposalById(proposalId: string): Promise<any> {
+  static async getProposalById(proposalId: string) {
     return await prisma.proposal.findUnique({
       where: { id: proposalId },
       include: {

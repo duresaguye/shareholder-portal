@@ -47,11 +47,14 @@ export class ShareService {
       }
     });
 
-    const totalCurrentShares = shareholders.reduce((sum: any, s: { totalShares: any; }) => sum + s.totalShares, 0);
+    const totalCurrentShares = shareholders.reduce(
+      (sum: number, s: { totalShares: number }) => sum + s.totalShares,
+      0
+    );
     const totalNewShares = totalCurrentShares + targetShares;
 
     // Calculate new ownership percentages
-    const allocations: ShareAllocation[] = shareholders.map((shareholder: { totalShares: number; id: any; ownership: any; }) => {
+    const allocations: ShareAllocation[] = shareholders.map((shareholder) => {
       const newOwnership = (shareholder.totalShares / totalNewShares) * 100;
       
       return {
@@ -112,8 +115,8 @@ export class ShareService {
   static async executeDilution(
     newShareholderData: NewShareholderData,
     allocations: ShareAllocation[]
-  ): Promise<any> {
-    return await prisma.$transaction(async (tx: any) => {
+  ): Promise<unknown> {
+    return await prisma.$transaction(async (tx) => {
       // Get or create COMMON share class if shareClassId not provided
       let shareClass;
       if (newShareholderData.shareClassId) {
@@ -191,8 +194,8 @@ export class ShareService {
     newShareholderData: NewShareholderData,
     fromShareholderId: string,
     transferShares: number
-  ): Promise<any> {
-    return await prisma.$transaction(async (tx: any) => {
+  ): Promise<unknown> {
+    return await prisma.$transaction(async (tx) => {
       // Get the selling shareholder first
       const fromShareholder = await tx.shareholder.findUnique({
         where: { id: fromShareholderId }
@@ -236,7 +239,10 @@ export class ShareService {
         select: { totalShares: true }
       });
 
-      const totalSharesBefore = allShareholders.reduce((sum, s) => sum + s.totalShares, 0);
+      const totalSharesBefore = allShareholders.reduce(
+        (sum: number, s: { totalShares: number }) => sum + s.totalShares,
+        0
+      );
       
       // Create the new shareholder
       const newShareholder = await tx.shareholder.create({
@@ -308,7 +314,11 @@ export class ShareService {
     transferShares: number,
     shareClassId: string,
     price: number
-  ): Promise<any> {
+  ): Promise<{
+    transferRequest: unknown;
+    fromShareholder: { id: string; newShares: number; newOwnership: number };
+    toShareholder: { id: string; newShares: number; newOwnership: number };
+  }> {
     return await prisma.$transaction(async (tx) => {
       // Get both shareholders
       const fromShareholder = await tx.shareholder.findUnique({
@@ -415,7 +425,7 @@ export class ShareService {
    * Recalculate all ownership percentages based on current shares
    */
   static async recalculateAllOwnership(): Promise<void> {
-    await prisma.$transaction(async (tx: { shareholder: { findMany: (arg0: { where: { status: any; }; select: { id: boolean; totalShares: boolean; }; }) => any; update: (arg0: { where: { id: any; }; data: { ownership: number; }; }) => any; }; }) => {
+    await prisma.$transaction(async (tx) => {
       const totalShares = await this.getTotalShares();
       
       if (totalShares === 0) return;

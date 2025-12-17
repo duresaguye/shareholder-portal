@@ -6,23 +6,33 @@ import {
   CreateNewShareholderProposalRequest,
   CreateShareTransferProposalRequest,
   CreateGeneralProposalRequest,
-  CastVoteRequest 
+  CastVoteRequest,
+  CreateProposalResponse,
+  CreateShareTransferProposalResponse,
+  CastVoteResponse,
+  FinalizeVotingResponse,
 } from '../types/api';
 
 export const proposalsApi = {
   // Create new shareholder proposal
-  createNewShareholderProposal: async (data: CreateNewShareholderProposalRequest): Promise<{ message: string; proposal: any }> => {
-    return apiClient.post('/api/proposals/new-shareholder', data);
+  createNewShareholderProposal: async (
+    data: CreateNewShareholderProposalRequest
+  ): Promise<CreateProposalResponse> => {
+    return apiClient.post<CreateProposalResponse>('/api/proposals/new-shareholder', data);
   },
 
   // Create share transfer proposal
-  createShareTransferProposal: async (data: CreateShareTransferProposalRequest): Promise<{ message: string; proposal: any; transferRequest: any }> => {
-    return apiClient.post('/api/proposals/share-transfer', data);
+  createShareTransferProposal: async (
+    data: CreateShareTransferProposalRequest
+  ): Promise<CreateShareTransferProposalResponse> => {
+    return apiClient.post<CreateShareTransferProposalResponse>('/api/proposals/share-transfer', data);
   },
 
   // Create general/amendment proposal
-  createGeneralProposal: async (data: CreateGeneralProposalRequest): Promise<{ message: string; proposal: any }> => {
-    return apiClient.post('/api/proposals/general', data);
+  createGeneralProposal: async (
+    data: CreateGeneralProposalRequest
+  ): Promise<CreateProposalResponse> => {
+    return apiClient.post<CreateProposalResponse>('/api/proposals/general', data);
   },
 
   // Get all proposals
@@ -36,8 +46,11 @@ export const proposalsApi = {
   },
 
   // Cast vote on proposal
-  castVote: async (proposalId: string, data: CastVoteRequest): Promise<{ message: string; vote: any; votingClosed?: boolean; votingResults?: any }> => {
-    return apiClient.post(`/api/proposals/${proposalId}/vote`, data);
+  castVote: async (
+    proposalId: string,
+    data: CastVoteRequest
+  ): Promise<CastVoteResponse> => {
+    return apiClient.post<CastVoteResponse>(`/api/proposals/${proposalId}/vote`, data);
   },
 
   // Get voting results
@@ -46,7 +59,7 @@ export const proposalsApi = {
   },
 
   // Finalize voting (admin only)
-  finalizeVoting: async (proposalId: string): Promise<{ message: string; votingResults: any; executionResult?: any }> => {
-    return apiClient.post(`/api/proposals/${proposalId}/finalize`);
+  finalizeVoting: async (proposalId: string): Promise<FinalizeVotingResponse> => {
+    return apiClient.post<FinalizeVotingResponse>(`/api/proposals/${proposalId}/finalize`);
   },
 };

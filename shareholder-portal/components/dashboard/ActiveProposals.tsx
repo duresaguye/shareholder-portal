@@ -81,8 +81,9 @@ export function ActiveProposals() {
             setVoteChoice("");
             setVoteReason("");
             refetch();
-        } catch (error: any) {
-            alert(error.message || 'Failed to submit vote');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to submit vote';
+            alert(message);
         }
     };
 
@@ -106,7 +107,16 @@ export function ActiveProposals() {
         bgColor,
         borderColor,
         isSelected
-    }: any) => (
+    }: {
+        option: "YES" | "NO" | "ABSTAIN";
+        label: string;
+        description: string;
+        icon: React.ComponentType<{ className?: string }>;
+        color: string;
+        bgColor: string;
+        borderColor: string;
+        isSelected: boolean;
+    }) => (
         <div
             className={`flex items-center justify-between p-5 rounded-xl border-2 cursor-pointer transition-all duration-200 ${isSelected ? `${borderColor} ${bgColor}` : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }`}

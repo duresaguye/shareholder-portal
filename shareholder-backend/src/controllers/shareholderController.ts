@@ -35,9 +35,10 @@ export const getAllShareholders = async (req: Request, res: Response) => {
     });
 
     return res.json({ shareholders });
-  } catch (e: any) {
+  } catch (e) {
     console.error("Error fetching shareholders:", e);
-    return res.status(500).json({ error: e.message });
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -67,9 +68,10 @@ export const getAllUsers = async (req: Request, res: Response) => {
     });
 
     return res.json({ users });
-  } catch (e: any) {
+  } catch (e) {
     console.error("Error fetching users:", e);
-    return res.status(500).json({ error: e.message });
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -98,9 +100,10 @@ export const updateShareholderStatus = async (req: Request, res: Response) => {
       message: "Shareholder status updated successfully.",
       shareholder
     });
-  } catch (e: any) {
+  } catch (e) {
     console.error("Error updating shareholder status:", e);
-    return res.status(500).json({ error: e.message });
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -160,9 +163,10 @@ export const getShareholderById = async (req: Request, res: Response) => {
         shares: shareholder.shares // Include shares array for frontend calculations
       }
     });
-  } catch (e: any) {
+  } catch (e) {
     console.error("Error fetching shareholder:", e);
-    return res.status(500).json({ error: e.message });
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -233,9 +237,10 @@ export const updateShareholder = async (req: Request, res: Response) => {
       message: "Shareholder updated successfully.",
       shareholder: updatedShareholder
     });
-  } catch (e: any) {
+  } catch (e) {
     console.error("Error updating shareholder:", e);
-    return res.status(500).json({ error: e.message });
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -260,9 +265,10 @@ export const deleteShareholder = async (req: Request, res: Response) => {
       message: "Shareholder deleted successfully.",
       deletedId: id
     });
-  } catch (e: any) {
+  } catch (e) {
     console.error("Error deleting shareholder:", e);
-    return res.status(500).json({ error: e.message });
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -297,9 +303,10 @@ export const getPendingShareholders = async (req: Request, res: Response) => {
       pendingShareholders,
       count: pendingShareholders.length 
     });
-  } catch (e: any) {
+  } catch (e) {
     console.error("Error fetching pending shareholders:", e);
-    return res.status(500).json({ error: e.message });
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
 
@@ -336,8 +343,9 @@ export const getCurrentUser = async (req: AuthRequest, res: Response) => {
     }
 
     return res.json({ shareholder });
-  } catch (e: any) {
+  } catch (e) {
     console.error("Error fetching current user:", e);
-    return res.status(500).json({ error: e.message });
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return res.status(500).json({ error: message });
   }
 };
