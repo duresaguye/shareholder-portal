@@ -10,6 +10,7 @@ import proposalRoutes from "./routes/proposalRoutes";
 import shareClassRoutes from "./routes/shareClassRoutes";
 import testRoutes from "./routes/testRoutes";
 import announcementRoutes from "./routes/announcementRoutes";
+import systemSettingsRoutes from "./routes/systemSettingsRoutes";
 import { authenticateJWT, authorizeRoles } from "./middlewares/authMiddleware";
 
 const app = express();
@@ -41,6 +42,7 @@ app.use("/api/shareholders", shareholderRoutes);
 app.use("/api/proposals", proposalRoutes);
 app.use("/api/share-classes", shareClassRoutes);
 app.use("/api/announcements", announcementRoutes);
+app.use("/api/system-settings", systemSettingsRoutes);
 app.use("/api/test", testRoutes); // TEMPORARY - Remove in production
 
 app.get(

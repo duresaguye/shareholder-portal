@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { proposalsApi } from '../api/proposals';
 import { CreateNewShareholderProposalRequest, CreateShareTransferProposalRequest, CreateGeneralProposalRequest, CastVoteRequest } from '../types/api';
 import { shareholderKeys } from './useShareholders';
+import { systemSettingsKeys } from './useSystemSettings';
+
 
 // Query Keys
 export const proposalKeys = {
@@ -97,6 +99,8 @@ export const useCastVote = () => {
         // Invalidate all shareholder queries
         queryClient.invalidateQueries({ queryKey: ['shareholders'] });
         queryClient.invalidateQueries({ queryKey: shareholderKeys.all });
+        // Invalidate system settings to update distributed/available shares calculation
+        queryClient.invalidateQueries({ queryKey: systemSettingsKeys.current() });
         // Force immediate refetch
         queryClient.refetchQueries({ queryKey: shareholderKeys.all, type: 'active' });
       }
@@ -115,6 +119,9 @@ export const useFinalizeVoting = () => {
       queryClient.invalidateQueries({ queryKey: proposalKeys.votingResults(proposalId) });
       queryClient.invalidateQueries({ queryKey: proposalKeys.lists() });
       queryClient.invalidateQueries({ queryKey: ['shareholders'] });
+      queryClient.invalidateQueries({ queryKey: shareholderKeys.all });
+      // Invalidate system settings to update distributed/available shares
+      queryClient.invalidateQueries({ queryKey: systemSettingsKeys.current() });
     },
   });
 };

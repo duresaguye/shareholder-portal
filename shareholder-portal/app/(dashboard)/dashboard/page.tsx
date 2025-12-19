@@ -31,6 +31,7 @@ export default function DashboardPage() {
     const { data: shareholdersData, isLoading: loadingShareholders, error: shareholdersError } = useShareholders();
     const { data: proposalsData, isLoading: loadingProposals, error: proposalsError } = useProposals();
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const shareholders = shareholdersData?.shareholders ?? [];
     const proposals = proposalsData?.proposals ?? [];
 

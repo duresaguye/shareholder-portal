@@ -37,6 +37,7 @@ model Shareholder {
   transferRequestsTo     ShareTransferRequest[] @relation("toShareholder")
   shares                 ShareholderShare[]
   votes                  Vote[]
+  systemSettingsUpdates  SystemSettings[]       @relation("SystemSettingsUpdatedBy")
 }
 
 model ShareClass {
@@ -185,6 +186,14 @@ model Message {
   sentAt  DateTime    @default(now())
   from    Shareholder @relation("from", fields: [fromId], references: [id])
   to      Shareholder @relation("to", fields: [toId], references: [id])
+}
+
+model SystemSettings {
+  id              String   @id @default("system")
+  authorizedShares Int      @default(1000000)
+  updatedAt       DateTime @updatedAt
+  updatedById     String?
+  updatedBy       Shareholder? @relation("SystemSettingsUpdatedBy", fields: [updatedById], references: [id])
 }
 
 enum ShareholderType {

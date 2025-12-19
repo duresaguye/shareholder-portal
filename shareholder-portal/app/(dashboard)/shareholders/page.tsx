@@ -30,7 +30,10 @@ import {
     BadgePercent,
     AlertCircle,
     Loader2,
-    RefreshCw
+    RefreshCw,
+    Edit,
+    Save,
+    FileCheck
 } from "lucide-react";
 import {
     DropdownMenu,
@@ -60,18 +63,21 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
 // TanStack Query hooks
-import { useShareholders } from "@/lib/hooks/useShareholders";
+import { useShareholders, useCurrentUser } from "@/lib/hooks/useShareholders";
 import { useCreateNewShareholderProposal } from "@/lib/hooks/useProposals";
 import { useShareClasses } from "@/lib/hooks/useShareClasses";
 import { useCreateTestShareholders } from "@/lib/hooks/useTest";
+import { useSystemSettings, useUpdateSystemSettings } from "@/lib/hooks/useSystemSettings";
 import { Shareholder } from "@/lib/types/api";
 
 export default function ShareholdersPage() {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [requireApproval, setRequireApproval] = useState(true); // Default to voting process
+    const [isEditAuthSharesOpen, setIsEditAuthSharesOpen] = useState(false);
+    const [authorizedShares, setAuthorizedShares] = useState<string>("");
 
     const [searchTerm, setSearchTerm] = useState("");
-    
+
     const [newShareholder, setNewShareholder] = useState({
         firstName: "",
         lastName: "",
@@ -80,7 +86,7 @@ export default function ShareholdersPage() {
         password: "",
         shares: "",
         type: "individual" as "individual" | "institution",
-        role: "shareholder" as "shareholder",
+        role: "shareholder" as const,
         phone: "",
         address: "",
         ownership: "",
@@ -89,30 +95,40 @@ export default function ShareholdersPage() {
     });
 
     // TanStack Query hooks
-    const { 
-        data: shareholdersData, 
-        isLoading: shareholdersLoading, 
+    const {
+        data: shareholdersData,
+        isLoading: shareholdersLoading,
         error: shareholdersError,
-        refetch: refetchShareholders 
+        refetch: refetchShareholders
     } = useShareholders();
-    
 
-    
+    const { data: currentUserData } = useCurrentUser();
+    const { data: settingsData, isLoading: settingsLoading } = useSystemSettings();
+    const updateSettings = useUpdateSystemSettings();
+
     const { data: shareClassesData } = useShareClasses();
-    
+
     const createProposalMutation = useCreateNewShareholderProposal();
     const createTestShareholdersMutation = useCreateTestShareholders();
     const queryClient = useQueryClient();
 
-    // Use only shareholders data (no admins)
+ 
     const currentData = shareholdersData;
     const currentLoading = shareholdersLoading;
     const currentError = shareholdersError;
     const currentRefetch = refetchShareholders;
 
-    // Background refetch - only refetch in background when window is focused, no UI flicker
+    // Update local state when settings data loads
     useEffect(() => {
-        // Only refetch when window regains focus (user comes back to tab)
+        if (settingsData?.settings?.authorizedShares !== undefined) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setAuthorizedShares(settingsData.settings.authorizedShares.toString());
+        }
+    }, [settingsData?.settings?.authorizedShares]);
+
+
+    useEffect(() => {
+     
         const handleFocus = () => {
             queryClient.invalidateQueries({ queryKey: ['shareholders'] });
         };
@@ -124,10 +140,10 @@ export default function ShareholdersPage() {
     // Transform API data to display format
     const shareholders = React.useMemo(() => {
         if (!currentData) return [];
-        
+
         const dataKey = 'shareholders';
         const apiData = currentData[dataKey] || [];
-        
+
         return apiData
             .map((item: Shareholder) => ({
                 id: item.id,
@@ -174,6 +190,21 @@ export default function ShareholdersPage() {
         }
     };
 
+    const handleSaveAuthorizedShares = async () => {
+        const value = parseInt(authorizedShares, 10);
+        if (isNaN(value) || value < 0) {
+            alert("Please enter a valid positive number");
+            return;
+        }
+
+        try {
+            await updateSettings.mutateAsync({ authorizedShares: value });
+            setIsEditAuthSharesOpen(false);
+        } catch (error) {
+            console.error("Failed to update settings:", error);
+        }
+    };
+
     const handleSaveShareholder = async () => {
         if (!requireApproval) {
             alert('Direct shareholder creation is disabled. Please use the voting process.');
@@ -182,7 +213,7 @@ export default function ShareholdersPage() {
 
         try {
             // Validate required fields
-            if (!newShareholder.firstName || !newShareholder.lastName || !newShareholder.email || 
+            if (!newShareholder.firstName || !newShareholder.lastName || !newShareholder.email ||
                 !newShareholder.username || !newShareholder.password) {
                 alert('Please fill in all required fields.');
                 return;
@@ -209,9 +240,9 @@ export default function ShareholdersPage() {
             };
 
             await createProposalMutation.mutateAsync(proposalData);
-            
+
             alert('Proposal created successfully! Shareholders can now vote on this proposal.');
-            
+
             // Reset form and close dialog
             setNewShareholder({
                 firstName: "",
@@ -229,7 +260,7 @@ export default function ShareholdersPage() {
                 fromShareholderId: ""
             });
             setIsAddDialogOpen(false);
-            
+
         } catch (error: any) {
             alert(`Error creating proposal: ${error?.message || 'Unknown error'}`);
         }
@@ -262,7 +293,7 @@ export default function ShareholdersPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                   
+
 
                     <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                         <DialogTrigger asChild>
@@ -299,7 +330,7 @@ export default function ShareholdersPage() {
                                         />
                                     </div>
                                 </div>
-                                
+
                                 <div className="space-y-2">
                                     <Label htmlFor="email">Email Address *</Label>
                                     <Input
@@ -310,7 +341,7 @@ export default function ShareholdersPage() {
                                         onChange={(e) => setNewShareholder({ ...newShareholder, email: e.target.value })}
                                     />
                                 </div>
-                                
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="username">Username *</Label>
@@ -332,7 +363,7 @@ export default function ShareholdersPage() {
                                         />
                                     </div>
                                 </div>
-                                
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="shares">Number of Shares</Label>
@@ -356,12 +387,12 @@ export default function ShareholdersPage() {
                                         />
                                     </div>
                                 </div>
-                                
+
                                 <div className="space-y-2">
                                     <Label htmlFor="type">Shareholder Type</Label>
                                     <Select
                                         value={newShareholder.type}
-                                        onValueChange={(value: "individual" | "institution") => 
+                                        onValueChange={(value: "individual" | "institution") =>
                                             setNewShareholder({ ...newShareholder, type: value })
                                         }
                                     >
@@ -374,12 +405,12 @@ export default function ShareholdersPage() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                
+
                                 <div className="space-y-2">
                                     <Label htmlFor="acquisitionMode">Acquisition Mode</Label>
                                     <Select
                                         value={newShareholder.acquisitionMode}
-                                        onValueChange={(value: "purchaseByDilution" | "purchaseFromSingle") => 
+                                        onValueChange={(value: "purchaseByDilution" | "purchaseFromSingle") =>
                                             setNewShareholder({ ...newShareholder, acquisitionMode: value })
                                         }
                                     >
@@ -392,13 +423,13 @@ export default function ShareholdersPage() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                
+
                                 {newShareholder.acquisitionMode === 'purchaseFromSingle' && (
                                     <div className="space-y-2">
                                         <Label htmlFor="fromShareholder">Source Shareholder</Label>
                                         <Select
                                             value={newShareholder.fromShareholderId}
-                                            onValueChange={(value) => 
+                                            onValueChange={(value) =>
                                                 setNewShareholder({ ...newShareholder, fromShareholderId: value })
                                             }
                                         >
@@ -415,7 +446,7 @@ export default function ShareholdersPage() {
                                         </Select>
                                     </div>
                                 )}
-                                
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="phone">Phone Number</Label>
@@ -487,7 +518,7 @@ export default function ShareholdersPage() {
                         </div>
                     </div>
                 </Card>
-                
+
                 <Card className="p-5 border-0 shadow-sm bg-gradient-to-br from-emerald-50 to-emerald-100/30">
                     <div className="flex items-center justify-between">
                         <div>
@@ -505,7 +536,7 @@ export default function ShareholdersPage() {
                         </div>
                     </div>
                 </Card>
-                
+
                 <Card className="p-5 border-0 shadow-sm bg-gradient-to-br from-purple-50 to-purple-100/30">
                     <div className="flex items-center justify-between">
                         <div>
@@ -523,7 +554,7 @@ export default function ShareholdersPage() {
                         </div>
                     </div>
                 </Card>
-                
+
                 <Card className="p-5 border-0 shadow-sm bg-gradient-to-br from-amber-50 to-amber-100/30">
                     <div className="flex items-center justify-between">
                         <div>
@@ -532,7 +563,7 @@ export default function ShareholdersPage() {
                                 {currentLoading ? (
                                     <Loader2 className="h-6 w-6 animate-spin" />
                                 ) : (
-                                    shareholders.length > 0 
+                                    shareholders.length > 0
                                         ? Math.round(totalShares / shareholders.length).toLocaleString()
                                         : '0'
                                 )}
@@ -543,7 +574,117 @@ export default function ShareholdersPage() {
                         </div>
                     </div>
                 </Card>
+
+                <Card className="p-5 border-0 shadow-sm bg-gradient-to-br from-indigo-50 to-indigo-100/30">
+                    <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium text-indigo-700">Total Authorized</p>
+                            </div>
+                            <p className="text-xl font-bold text-gray-900 mt-1">
+                                {settingsLoading ? (
+                                    <Loader2 className="h-6 w-6 animate-spin" />
+                                ) : (
+                                    settingsData?.settings?.authorizedShares?.toLocaleString() || '0'
+                                )}
+                            </p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-indigo-100 text-indigo-600">
+                            <FileCheck className="h-6 w-6" />
+                        </div>
+                    </div>
+                </Card>
             </div>
+
+            {/* Edit Authorized Shares Modal */}
+            <Dialog open={isEditAuthSharesOpen} onOpenChange={setIsEditAuthSharesOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Update Authorized Shares</DialogTitle>
+                        <DialogDescription>
+                            Set the maximum number of shares the company is authorized to issue.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        {settingsData?.settings && (
+                            <div className="grid grid-cols-2 gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm">
+                                <div className="space-y-1">
+                                    <div className="text-xs font-medium text-gray-500">Distributed</div>
+                                    <div className="text-lg font-bold text-blue-600">
+                                        {settingsData.settings.totalDistributedShares?.toLocaleString() || 0}
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="text-xs font-medium text-gray-500">Available</div>
+                                    <div className={`text-lg font-bold ${(settingsData.settings.availableShares || 0) > 0
+                                            ? 'text-emerald-600'
+                                            : 'text-red-600'
+                                        }`}>
+                                        {settingsData.settings.availableShares?.toLocaleString() || 0}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        <div className="space-y-2">
+                            <Label htmlFor="authShares" className="font-medium">
+                                Authorized Shares
+                            </Label>
+                            <Input
+                                id="authShares"
+                                type="number"
+                                min="0"
+                                value={authorizedShares}
+                                onChange={(e) => setAuthorizedShares(e.target.value)}
+                                disabled={settingsLoading || updateSettings.isPending}
+                                placeholder="Enter authorized shares"
+                                className="h-11"
+                            />
+                        </div>
+                        {settingsData?.settings?.updatedBy && (
+                            <p className="text-xs text-gray-500">
+                                Last updated by {settingsData.settings.updatedBy.firstName} {settingsData.settings.updatedBy.lastName} on{" "}
+                                {new Date(settingsData.settings.updatedAt).toLocaleDateString()}
+                            </p>
+                        )}
+                        {updateSettings.isSuccess && (
+                            <p className="text-sm text-emerald-600">
+                                ✓ Settings saved successfully
+                            </p>
+                        )}
+                        {updateSettings.isError && (
+                            <p className="text-sm text-red-600">
+                                ✗ Failed to save settings. Please try again.
+                            </p>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsEditAuthSharesOpen(false)}
+                            disabled={updateSettings.isPending}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSaveAuthorizedShares}
+                            disabled={settingsLoading || updateSettings.isPending}
+                            className="gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                        >
+                            {updateSettings.isPending ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="h-4 w-4" />
+                                    Save
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Search and Filter Section */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -557,9 +698,9 @@ export default function ShareholdersPage() {
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                
-                <Button 
-                    variant="outline" 
+
+                <Button
+                    variant="outline"
                     onClick={() => currentRefetch()}
                     disabled={currentLoading}
                     className="gap-2"
@@ -615,11 +756,10 @@ export default function ShareholdersPage() {
                                                 <div className="space-y-1">
                                                     <div className="flex items-center gap-2">
                                                         <p className="font-semibold text-gray-900">{shareholder.name}</p>
-                                                        <Badge variant="outline" className={`${
-                                                            shareholder.type === 'institution' 
-                                                                ? 'bg-purple-50 text-purple-700 border-purple-200' 
+                                                        <Badge variant="outline" className={`${shareholder.type === 'institution'
+                                                                ? 'bg-purple-50 text-purple-700 border-purple-200'
                                                                 : 'bg-blue-50 text-blue-700 border-blue-200'
-                                                        } h-5`}>
+                                                            } h-5`}>
                                                             {shareholder.type === 'institution' ? (
                                                                 <Building2 className="h-3 w-3 mr-1" />
                                                             ) : (
@@ -635,7 +775,7 @@ export default function ShareholdersPage() {
                                                 </div>
                                             </div>
                                         </TableCell>
-                                        
+
                                         <TableCell className="py-4">
                                             <div className="space-y-2">
                                                 <div className="flex items-center gap-2 text-sm">
@@ -648,7 +788,7 @@ export default function ShareholdersPage() {
                                                 </div>
                                             </div>
                                         </TableCell>
-                                        
+
                                         <TableCell className="py-4">
                                             <div className="space-y-2">
                                                 <div className="font-bold text-gray-900 text-xl">
@@ -663,7 +803,7 @@ export default function ShareholdersPage() {
                                                 />
                                             </div>
                                         </TableCell>
-                                        
+
                                         <TableCell className="py-4">
                                             <div className="space-y-2">
                                                 <div className="flex items-center gap-2">
@@ -677,19 +817,18 @@ export default function ShareholdersPage() {
                                                 </div>
                                             </div>
                                         </TableCell>
-                                        
 
-                                        
+
+
                                         <TableCell className="py-4">
-                                            <Badge className={`${
-                                                shareholder.status === 'active'
+                                            <Badge className={`${shareholder.status === 'active'
                                                     ? 'bg-emerald-500/10 text-emerald-700 border-emerald-200'
                                                     : 'bg-gray-500/10 text-gray-700 border-gray-200'
-                                            } font-medium`}>
+                                                } font-medium`}>
                                                 {shareholder.status.charAt(0).toUpperCase() + shareholder.status.slice(1)}
                                             </Badge>
                                         </TableCell>
-                                        
+
                                         <TableCell className="py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
                                                 <Link href={`/shareholders/${shareholder.id}`}>
@@ -698,7 +837,7 @@ export default function ShareholdersPage() {
                                                         View
                                                     </Button>
                                                 </Link>
-                                                
+
                                             </div>
                                         </TableCell>
                                     </TableRow>

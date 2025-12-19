@@ -3,20 +3,21 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRightLeft, DollarSign, PieChart, TrendingUp } from "lucide-react";
 import { useCurrentUser } from "@/lib/hooks/useShareholders";
+import { useSystemSettings } from "@/lib/hooks/useSystemSettings";
 
 export function ShareSummary() {
     const { data, isLoading, error } = useCurrentUser();
+    const { data: settingsData } = useSystemSettings();
     
     const shareholder = data?.shareholder;
     const totalShares = shareholder?.totalShares || 0;
-    const ownership = shareholder?.ownership || 0;
-    
-    // Calculate total shares in the system (assuming 1,000,000 for now)
- //fix? later replace with actual data from API
-    const totalSystemShares = 1000000;
-    const ownershipPercentage = totalSystemShares > 0 
-        ? ((totalShares / totalSystemShares) * 100).toFixed(2)
+   
+    const ownershipPercentage = shareholder?.ownership 
+        ? shareholder.ownership.toFixed(2) 
         : "0.00";
+    
+  
+    const authorizedShares = settingsData?.settings?.authorizedShares;
 
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -54,7 +55,9 @@ export function ShareSummary() {
                         <>
                             <div className="text-2xl font-bold">{ownershipPercentage}%</div>
                             <p className="text-xs text-muted-foreground">
-                                of {totalSystemShares.toLocaleString()} total shares
+                                {authorizedShares 
+                                    ? `of ${authorizedShares.toLocaleString()} authorized shares`
+                                    : "ownership stake"}
                             </p>
                         </>
                     )}

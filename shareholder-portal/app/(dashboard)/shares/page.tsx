@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
     Card,
     CardContent,
@@ -24,11 +24,16 @@ import {
     Legend,
     Tooltip,
 } from "recharts";
-import { TrendingUp, PieChart as PieChartIcon, DollarSign, BarChart3, Percent } from "lucide-react";
+import { TrendingUp, PieChart as PieChartIcon, DollarSign, BarChart3, Percent, Edit, Save, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { useShareholders } from "@/lib/hooks/useShareholders";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useShareholders, useCurrentUser } from "@/lib/hooks/useShareholders";
+import { useSystemSettings, useUpdateSystemSettings } from "@/lib/hooks/useSystemSettings";
 
 const palette = ["#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#6366F1", "#14B8A6", "#F97316"];
 
@@ -36,7 +41,38 @@ export default function SharesPage() {
     const { data, isLoading, error } = useShareholders();
     const shareholders = data?.shareholders ?? [];
 
-    const totalAuthorized = Number(process.env.NEXT_PUBLIC_AUTHORIZED_SHARES ?? 1_000_000);
+    const { data: currentUserData } = useCurrentUser();
+    const { data: settingsData, isLoading: settingsLoading } = useSystemSettings();
+    const updateSettings = useUpdateSystemSettings();
+
+    const [isEditAuthSharesOpen, setIsEditAuthSharesOpen] = useState(false);
+    const [authorizedShares, setAuthorizedShares] = useState<string>("");
+
+    const isAdmin = currentUserData?.shareholder?.role === "admin";
+    const totalAuthorized = settingsData?.settings?.authorizedShares ?? 1_000_000;
+
+    
+    useEffect(() => {
+        if (settingsData?.settings?.authorizedShares !== undefined) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setAuthorizedShares(settingsData.settings.authorizedShares.toString());
+        }
+    }, [settingsData?.settings?.authorizedShares]);
+
+    const handleSaveAuthorizedShares = async () => {
+        const value = parseInt(authorizedShares, 10);
+        if (isNaN(value) || value < 0) {
+            alert("Please enter a valid positive number");
+            return;
+        }
+
+        try {
+            await updateSettings.mutateAsync({ authorizedShares: value });
+            setIsEditAuthSharesOpen(false);
+        } catch (error) {
+            console.error("Failed to update settings:", error);
+        }
+    };
 
     const { totalShares, issuedShares, availableShares, distribution } = useMemo(() => {
         const total = totalAuthorized || 0;
@@ -93,11 +129,23 @@ export default function SharesPage() {
                 <Card className="border-0 shadow-sm bg-gradient-to-br from-blue-50 to-blue-100/30">
                     <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
-                            <div>
-                                <div className="text-xl font-bold text-gray-900">
-                                    {isLoading ? "…" : totalShares.toLocaleString()}
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                    <div className="text-sm text-gray-600">Total Authorized</div>
+                                    {isAdmin && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-5 w-5 p-0 hover:bg-blue-200 "
+                                            onClick={() => setIsEditAuthSharesOpen(true)}
+                                        >
+                                            <Edit className="h-8 w-8 text-blue-600" />
+                                        </Button>
+                                    )}
                                 </div>
-                                <div className="text-sm text-gray-600">Total Authorized</div>
+                                <div className="text-xl font-bold text-gray-900 mt-1">
+                                    {settingsLoading ? "…" : totalShares.toLocaleString()}
+                                </div>
                             </div>
                             <div className="p-3 rounded-lg bg-blue-100 text-blue-600">
                                 <PieChartIcon className="h-5 w-5" />
@@ -395,6 +443,96 @@ export default function SharesPage() {
                     </Badge>
                 </div>
             </Card>
+
+            {/* Edit Authorized Shares Modal */}
+            <Dialog open={isEditAuthSharesOpen} onOpenChange={setIsEditAuthSharesOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Update Authorized Shares</DialogTitle>
+                        <DialogDescription>
+                            Set the maximum number of shares the company is authorized to issue.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        {settingsData?.settings && (
+                            <div className="grid grid-cols-2 gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm">
+                                <div className="space-y-1">
+                                    <div className="text-xs font-medium text-gray-500">Distributed</div>
+                                    <div className="text-lg font-bold text-blue-600">
+                                        {settingsData.settings.totalDistributedShares?.toLocaleString() || 0}
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="text-xs font-medium text-gray-500">Available</div>
+                                    <div className={`text-lg font-bold ${(settingsData.settings.availableShares || 0) > 0
+                                            ? 'text-emerald-600'
+                                            : 'text-red-600'
+                                        }`}>
+                                        {settingsData.settings.availableShares?.toLocaleString() || 0}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        <div className="space-y-2">
+                            <Label htmlFor="authShares" className="font-medium">
+                                Authorized Shares
+                            </Label>
+                            <Input
+                                id="authShares"
+                                type="number"
+                                min="0"
+                                value={authorizedShares}
+                                onChange={(e) => setAuthorizedShares(e.target.value)}
+                                disabled={settingsLoading || updateSettings.isPending}
+                                placeholder="Enter authorized shares"
+                                className="h-11"
+                            />
+                        </div>
+                        {settingsData?.settings?.updatedBy && (
+                            <p className="text-xs text-gray-500">
+                                Last updated by {settingsData.settings.updatedBy.firstName} {settingsData.settings.updatedBy.lastName} on{" "}
+                                {new Date(settingsData.settings.updatedAt).toLocaleDateString()}
+                            </p>
+                        )}
+                        {updateSettings.isSuccess && (
+                            <p className="text-sm text-emerald-600">
+                                ✓ Settings saved successfully
+                            </p>
+                        )}
+                        {updateSettings.isError && (
+                            <p className="text-sm text-red-600">
+                                ✗ Failed to save settings. Please try again.
+                            </p>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsEditAuthSharesOpen(false)}
+                            disabled={updateSettings.isPending}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSaveAuthorizedShares}
+                            disabled={settingsLoading || updateSettings.isPending}
+                            className="gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                        >
+                            {updateSettings.isPending ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="h-4 w-4" />
+                                    Save
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

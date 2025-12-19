@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
 import { shareholdersApi } from '../api/shareholders';
 import { Shareholder } from '../types/api';
+import { systemSettingsKeys } from './useSystemSettings';
 
 // Query Keys
 export const shareholderKeys = {
@@ -76,6 +77,8 @@ export const useUpdateShareholder = () => {
       queryClient.invalidateQueries({ queryKey: shareholderKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: shareholderKeys.lists() });
       queryClient.invalidateQueries({ queryKey: shareholderKeys.users() });
+      // Invalidate system settings to update distributed/available shares
+      queryClient.invalidateQueries({ queryKey: systemSettingsKeys.current() });
     },
   });
 };
@@ -92,6 +95,8 @@ export const useUpdateShareholderStatus = () => {
       queryClient.invalidateQueries({ queryKey: shareholderKeys.lists() });
       queryClient.invalidateQueries({ queryKey: shareholderKeys.pending() });
       queryClient.invalidateQueries({ queryKey: shareholderKeys.users() });
+      // Invalidate system settings to update distributed/available shares
+      queryClient.invalidateQueries({ queryKey: systemSettingsKeys.current() });
     },
   });
 };
@@ -104,6 +109,8 @@ export const useDeleteShareholder = () => {
     onSuccess: () => {
       // Invalidate all shareholder queries
       queryClient.invalidateQueries({ queryKey: shareholderKeys.all });
+      // Invalidate system settings to update distributed/available shares
+      queryClient.invalidateQueries({ queryKey: systemSettingsKeys.current() });
     },
   });
 };
